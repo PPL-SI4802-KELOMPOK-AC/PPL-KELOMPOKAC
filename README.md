@@ -1,66 +1,91 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# TerangDesa
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Website pendataan, pengajuan, dan monitoring kebutuhan PLTS untuk kelompok warga.
 
-## About Laravel
+## PBI-02 — Peta Wilayah (KF-01)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Buka **Beranda → Peta Wilayah** atau `/peta-wilayah` (route `wilayah.map`). Peta Leaflet menampilkan cakupan Jawa Barat saat pertama dibuka, mendukung drag, zoom, keyboard, dan tombol **Kembali ke Jawa Barat**.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Tampilan mengikuti referensi dashboard terbaru: sidebar biru tua, aksen kuning untuk navigasi aktif, header putih dengan breadcrumb, latar abu-abu terang, dan panel peta putih. Navigasi hanya menampilkan halaman yang tersedia; nama pengguna diambil dari autentikasi jika tersedia, tanpa identitas atau statistik rekaan. Pada seluler, sidebar menjadi navigasi ringkas di atas konten.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Parallax dan cahaya pengikut kursor dipertahankan dengan intensitas lembut pada latar terang, tanpa memengaruhi tile peta. Perangkat sentuh memakai latar statis; `prefers-reduced-motion` mematikan efek gerakan dekoratif dan animasi zoom.
 
-## Learning Laravel
+Peta dasar tidak mengakses tabel `wilayah` atau memerlukan koordinat desa. Tidak ada marker dummy, geocoding, perubahan skema, migrasi, atau impor data. Penanda kelompok warga merupakan PBI-03; detail wilayah merupakan PBI-04. Referensi administratif tahun 2024 tidak membuktikan status elektrifikasi desa.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Menjalankan lokal
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Prasyarat: PHP 8.3+, Composer, Node.js, npm. Framework tetap Laravel 12.69 dan Vite sesuai proyek.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```powershell
+composer install
+# Hanya jika .env belum ada:
+Copy-Item .env.example .env
+php artisan key:generate
+npm.cmd ci
+npm.cmd run build
+```
 
-## Laravel Sponsors
+Gunakan konfigurasi MySQL lokal yang sudah tersedia di `.env`. Untuk memeriksa peta tanpa mengakses database maupun memerlukan tabel sessions/cache, gunakan driver file:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```dotenv
+APP_NAME=TerangDesa
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=terangdesa
+DB_USERNAME=root
+DB_PASSWORD=
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+```
 
-### Premium Partners
+Sesuaikan kredensial dengan instalasi sendiri. Jangan menimpa `.env` yang sudah dikonfigurasi. PBI ini tidak memerlukan `php artisan migrate` atau seeder.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+```powershell
+php artisan serve --host=127.0.0.1 --port=8000
+```
 
-## Contributing
+Buka <http://127.0.0.1:8000/peta-wilayah>. Setelah perubahan frontend, jalankan kembali `npm.cmd run build`, atau gunakan `npm.cmd run dev` selama pengembangan. Pada PowerShell, `npm.cmd` menghindari kendala execution policy pada `npm.ps1`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Lock Composer bawaan mengunci Pint v1.32.1 yang memerlukan PHP 8.3. Mesin pemeriksaan memakai PHP 8.2.12; dependensi dipasang secara lokal dengan `composer install --ignore-platform-req=php`, tanpa mengubah `composer.lock`. Aplikasi dan PHPUnit berhasil dijalankan, tetapi Pint tidak dijalankan. Gunakan PHP 8.3+ untuk pemasangan normal.
 
-## Code of Conduct
+## Penyedia peta
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Tile bawaan: `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, tanpa API key. Atribusi OpenStreetMap dan Leaflet selalu terlihat di sudut peta; keterangan dataset berada terpisah di bawah peta.
 
-## Security Vulnerabilities
+`MAP_TILE_URL` dan `MAP_ATTRIBUTION` dapat dikonfigurasi melalui `.env` dan `config/map.php`. Atribusi berisi HTML tepercaya yang hanya boleh diatur pengelola. Jangan masukkan kredensial database atau kunci rahasia ke konfigurasi yang dikirim ke browser. Jika mengganti penyedia, sesuaikan pula batas zoom dan ketentuan penyedia.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Implementasi mempertahankan cache dan Referer browser, tanpa prefetch/offline download. Ikuti [kebijakan tile OSM](https://operations.osmfoundation.org/policies/tiles/); layanan bersifat best effort dan bukan layanan dengan jaminan kapasitas produksi. Dokumentasi library: [Leaflet 1.9.4](https://leafletjs.com/reference.html).
 
-## License
+Pemuatan tile memiliki status memuat, berhasil, dan gagal. Kegagalan sebagian tile maupun timeout 15 detik menampilkan penjelasan serta tombol **Coba lagi**. Retry memuat ulang layer tanpa mengubah viewport dan tanpa menghapus cache browser. Kegagalan modul JavaScript menawarkan pemuatan ulang halaman. Jika JavaScript dinonaktifkan, halaman menampilkan instruksi mengaktifkannya.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Pemeriksaan
+
+```powershell
+php artisan test
+npm.cmd run build
+npm.cmd run test:e2e
+```
+
+Playwright menggunakan **Google Chrome yang sudah terpasang**, dan menjalankan server Laravel lokal bila belum tersedia. Pengujian normal memakai tile fixture khusus pengujian agar tidak membebani server OSM. Tidak ada fixture/marker yang masuk ke aplikasi.
+
+Cakupan pengujian browser: navigasi dan viewport awal Jawa Barat, drag, zoom, reset ke posisi semula, navigasi kembali, loading/error/retry, gerakan kursor dan parallax tanpa menggeser konten, reduced motion, fokus dan kontrol keyboard, lebar 390/320px tanpa overflow, serta gestur drag sentuh dan tombol sentuh.
+
+Untuk memeriksa tile asli, jalankan pengujian opsional berikut dengan jaringan tersedia:
+
+```powershell
+$env:MAP_LIVE_TILES='1'
+npm.cmd run test:e2e
+Remove-Item Env:MAP_LIVE_TILES
+```
+
+Screenshot peta asli desktop dan seluler disimpan di `test-results/peta-desktop-live.png` dan `test-results/peta-mobile-live.png` (diabaikan Git). Pengujian Laravel memastikan halaman tidak meminta koneksi DB dan tidak merender kredensial MySQL.
+
+## Status integrasi dan batas pemeriksaan
+
+Pada pemeriksaan 1 November 2026, branch remote `Fajri` dan `main` sama-sama menunjuk `f073517` dan hanya memuat kerangka Laravel. PBI-01, route login, middleware role, dan dokumen KF-01 terpisah belum tersedia. Implementasi mengacu pada rincian KF-01 dalam permintaan PBI-02. Route peta mengikuti akses publik route web yang tersedia; autentikasi PBI-01 belum dapat diuji. Setelah PBI-01 tersedia, tempatkan route `wilayah.map` dalam grup middleware yang sama dan integrasikan tautan ke layout aplikasi tersebut.
+
+Desain awal mengikuti arahan tertulis, lalu diperbarui berdasarkan gambar dashboard yang diberikan pengguna. Pemeriksaan seluler memakai emulasi Chrome, bukan perangkat fisik. Data MySQL sumber tidak dibaca atau diubah.
+
+Audit frontend menemukan dua temuan pada toolchain Vite 5/esbuild bawaan proyek (1 high, 1 moderate); pembaruan mayor toolchain tidak termasuk PBI-02. Pemeriksaan tampilan memakai hasil build produksi melalui server Laravel.
