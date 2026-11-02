@@ -14,5 +14,14 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Jangan kirim SQL, stack trace, atau konfigurasi koneksi ke halaman pengelola.
+        $exceptions->render(function (Illuminate\Database\QueryException $exception, Illuminate\Http\Request $request) {
+            if ($request->is('pemerintah/wilayah*', 'login')) {
+                $message = 'Database belum dapat diakses. Periksa layanan MySQL dan konfigurasi koneksi, lalu coba kembali.';
+
+                return $request->expectsJson()
+                    ? response()->json(['message' => $message], 503)
+                    : response()->view('errors.database', ['message' => $message], 503);
+            }
+        });
     })->create();

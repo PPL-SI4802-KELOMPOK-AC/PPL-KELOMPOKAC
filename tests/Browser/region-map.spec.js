@@ -5,13 +5,24 @@ import { test, expect } from '@playwright/test';
 const tile = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6l1sAAAAASUVORK5CYII=', 'base64');
 const tilePattern = 'https://tile.openstreetmap.org/**';
 const fulfillTile = route => route.fulfill({ contentType: 'image/png', body: tile });
-const ready = page => expect(page.locator('[data-map-panel]')).toHaveAttribute('data-state', 'ready');
+const ready = async page => {
+    await expect(page.locator('[data-map-panel]')).toHaveAttribute('data-state', 'ready');
+    await expect(page.locator('[data-boundary-state]')).toHaveAttribute('data-boundary-state', 'ready');
+};
 const paneTransform = page => page.locator('.leaflet-map-pane').evaluate(node => node.style.transform);
-const zoomLevel = page => page.locator('.leaflet-tile-container').last().locator('img').first().getAttribute('src').then(src => Number(new URL(src).pathname.split('/')[1]));
+// Leaflet dapat mempertahankan container zoom lama sesudah reset. Lapisan aktif
+// memiliki z-index tertinggi; urutan node DOM tidak menunjukkan zoom saat ini.
+const zoomLevel = page => page.locator('.leaflet-tile-container').evaluateAll(layers => {
+    const active = [...layers].filter(layer => layer.querySelector('img')).sort((a, b) => Number(b.style.zIndex) - Number(a.style.zIndex))[0];
+    const src = active?.querySelector('img')?.src;
+    return src ? Number(new URL(src).pathname.split('/')[1]) : -1;
+});
 const entranceFinished = page => page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
 const visibleTiles = page => page.locator('[data-region-map]').evaluate(map => {
     const box = map.getBoundingClientRect();
-    return [...map.querySelectorAll('.leaflet-tile-loaded')].flatMap(tile => {
+    // Lapisan zoom sebelumnya dapat masih berada di DOM selama transisi/pruning.
+    const active = [...map.querySelectorAll('.leaflet-tile-container')].filter(layer => layer.querySelector('img')).sort((a, b) => Number(b.style.zIndex) - Number(a.style.zIndex))[0];
+    return [...(active?.querySelectorAll('.leaflet-tile-loaded') ?? [])].flatMap(tile => {
         const rect = tile.getBoundingClientRect();
         return rect.right > box.left && rect.left < box.right && rect.bottom > box.top && rect.top < box.bottom
             ? [{ src: tile.getAttribute('src'), x: Math.round(rect.x - box.x), y: Math.round(rect.y - box.y) }] : [];
@@ -47,11 +58,16 @@ test('navigation, initial Jawa Barat viewport, drag, zoom and return', async ({ 
     await expect.poll(() => zoomLevel(page)).toBe(initialZoom);
     await ready(page);
     // Compare the geographic view against a fresh fit, including after panning.
-    await expect(page.locator('[data-region-map]')).not.toHaveClass(/leaflet-zoom-anim/);
+    await expect(page.locator('.leaflet-map-pane')).not.toHaveClass(/leaflet-zoom-anim/);
     const resetView = await visibleTiles(page);
     await page.reload();
     await ready(page);
-    await expect.poll(() => visibleTiles(page)).toEqual(resetView);
+    // Leaflet membulatkan posisi layar; hasil reset boleh berbeda 1 piksel
+    // setelah panel status/layout selesai diperbarui.
+    await expect.poll(async () => {
+        const current = await visibleTiles(page);
+        return current.length === resetView.length && current.every((tile, i) => tile.src === resetView[i].src && Math.abs(tile.x - resetView[i].x) <= 1 && Math.abs(tile.y - resetView[i].y) <= 1);
+    }).toBe(true);
     await page.getByRole('navigation').getByRole('link', { name: 'Beranda' }).click();
     await page.goBack();
     await ready(page);
@@ -78,27 +94,16 @@ test('loading, tile failure and explicit retry recover without coordinates', asy
     await expect(page.locator('.leaflet-control-attribution')).toContainText('OpenStreetMap');
 });
 
-test('cursor glow and parallax move while map content and text stay stable', async ({ page }) => {
+test('province outline and mask constrain the map without decorative effects or blocking controls', async ({ page }) => {
     await page.goto('/peta-wilayah');
     await ready(page);
-    await entranceFinished(page);
-    const title = await page.locator('h1').boundingBox();
-    const map = await page.locator('[data-region-map]').boundingBox();
-    const original = await paneTransform(page);
-    await page.mouse.move(70, 140);
-    await expect.poll(() => page.locator('.ambient').evaluate(node => Number(node.style.getPropertyValue('--glow-opacity')))).toBeGreaterThan(.9);
-    const before = await page.locator('.ambient__front').evaluate(node => getComputedStyle(node).transform);
-    await page.mouse.move(1250, 160);
-    await expect.poll(() => page.locator('.ambient').evaluate(node => parseFloat(node.style.getPropertyValue('--cursor-x')))).toBeGreaterThan(1200);
-    expect(await page.locator('.ambient__front').evaluate(node => getComputedStyle(node).transform)).not.toBe(before);
-    expect(await page.locator('h1').boundingBox()).toEqual(title);
-    expect(await page.locator('[data-region-map]').boundingBox()).toEqual(map);
-    expect(await paneTransform(page)).toBe(original);
-    await page.mouse.move(map.x + 100, map.y + 100);
-    await expect.poll(() => page.locator('.ambient').evaluate(node => Number(node.style.getPropertyValue('--glow-opacity')))).toBeLessThan(.1);
-    await page.mouse.move(70, 140);
-    await page.mouse.move(-10, -10);
-    await expect.poll(() => page.locator('.ambient').evaluate(node => Number(node.style.getPropertyValue('--glow-opacity')))).toBeLessThan(.1);
+    await expect(page.locator('[data-boundary-state]')).toHaveAttribute('data-boundary-state', 'ready');
+    await expect(page.locator('.province-mask')).toHaveCount(1);
+    expect(await page.locator('.leaflet-province-mask-pane').evaluate(node => getComputedStyle(node).pointerEvents)).toBe('none');
+    await expect(page.locator('.ambient')).toHaveCount(0);
+    const initialZoom = await zoomLevel(page);
+    await expect(page.getByRole('button', { name: 'Perkecil peta', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await expect.poll(() => zoomLevel(page)).toBe(initialZoom);
 });
 
 test('reduced motion disables decoration; keyboard map controls still work', async ({ page }) => {
@@ -106,8 +111,7 @@ test('reduced motion disables decoration; keyboard map controls still work', asy
     await page.goto('/peta-wilayah');
     await ready(page);
     await page.mouse.move(800, 140);
-    await expect(page.locator('.ambient')).not.toHaveAttribute('style');
-    expect(await page.locator('.ambient__cursor').evaluate(node => getComputedStyle(node).display)).toBe('none');
+    await expect(page.locator('.ambient')).toHaveCount(0);
     expect(await page.locator('.map-panel').evaluate(node => getComputedStyle(node).animationName)).toBe('none');
     const zoom = await zoomLevel(page);
     await page.getByRole('button', { name: 'Perbesar peta', exact: true }).focus();
@@ -130,7 +134,7 @@ test('mobile touch layout at 390px and 320px stays usable with static background
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await expect(page.locator('[data-map-reset]')).toBeVisible();
         await expect(page.locator('.leaflet-control-attribution')).toBeVisible();
-        expect(await page.locator('.ambient__cursor').evaluate(node => getComputedStyle(node).display)).toBe('none');
+        await expect(page.locator('.ambient')).toHaveCount(0);
     }
     await page.setViewportSize({ width: 390, height: 844 });
     const initial = await paneTransform(page);
