@@ -43,10 +43,12 @@
 .region-table tbody tr.is-selected { background: #fff7df; box-shadow: inset 3px 0 var(--yellow); }
 .region-table strong { display: block; font-size: 12px; font-weight: 600; }
 .region-table .row-address { display: block; max-width: 230px; margin-top: 5px; color: #60778a; font-size: 10px; overflow-wrap: anywhere; }
-.condition-badge { display: inline-block; padding: 4px 7px; border-radius: 6px; background: #edf1f5; color: #50677a; font-size: 10px; white-space: nowrap; }
+.condition-badge { display: inline-block; max-width: 170px; padding: 4px 7px; border-radius: 6px; background: #edf1f5; color: #50677a; font-size: 10px; white-space: normal; }
 .condition-badge[data-condition=belum_berlistrik] { background: #fff0db; color: #8a4a0d; }
 .condition-badge[data-condition=akses_terbatas] { background: #fff7ce; color: #725500; }
 .condition-badge[data-condition=sudah_berlistrik] { background: #e3f4ec; color: #22664d; }
+.condition-badge[data-condition=ada_kk_belum_berlistrik] { background: #fff0f0; color: #a82f35; }
+.condition-badge[data-condition=tidak_tercatat_kk_belum_berlistrik] { background: #edf5fc; color: #22699d; }
 .row-actions { display: flex; gap: 4px; }
 .row-actions .button { min-height: 36px; padding: 6px 8px; font-size: 11px; background: transparent; border-color: transparent; }
 .row-actions .delete-button { color: #a23830; }

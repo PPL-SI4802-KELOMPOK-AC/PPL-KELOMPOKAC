@@ -1,8 +1,31 @@
 # Peta Jawa Barat: sumber dan pengolahan
 
-Pembaruan 2 November 2026 menghubungkan peta dengan MySQL `terangdesa` dan dataset
-2024. Tidak ada migrasi, tabel/kolom baru, impor ulang, geocoding, atau pengisian
-otomatis `jumlah_kk_terdampak`, `kondisi_listrik`, maupun koordinat database.
+Finalisasi 3 November 2026 menghubungkan peta dengan MySQL `terangdesa` dan dataset
+2024. Pada 4 November, pengguna meminta data yang sama ditampilkan di pengelolaan:
+perintah sinkronisasi terpisah mengisi jumlah keluarga dan kondisi yang masih NULL.
+Tidak ada migrasi, tabel/kolom baru, pengosongan tabel, atau perubahan koordinat.
+
+## Sinkronisasi pengelolaan wilayah — 4 November 2026
+
+`php artisan wilayah:sync-csv` menghasilkan preview per kode; `--apply` menerapkan
+ke referensi yang jumlah dan kondisinya masih NULL. Periode hanya 2024, kode hanya
+Kemendagri yang cocok, tanpa pencocokan nama. Sebanyak **5.311 baris diperbarui**:
+`jumlah_kk_terdampak` memakai jumlah keluarga belum berlistrik, kondisi bernilai
+`ada_kk_belum_berlistrik` (1.197) atau `tidak_tercatat_kk_belum_berlistrik` (4.114).
+PLN tetap terpisah; jumlah warga, koordinat, `created_by`, dan tanggal tidak diisi.
+Tanggal lengkap tidak ditebak dari tahun sumber. NULL angka sumber tidak menjadi nol.
+
+Nilai sebelum/sesudah tersimpan pada audit lokal
+`storage/app/imports/wilayah-2024-apply-20261104-064051-08b525f3.json`.
+Audit disimpan sebelum commit; kegagalan penulisan audit menggagalkan transaksi.
+Sumber lama yang persis dikenali sebagai impor 2024 diperbarui menjadi keterangan
+dataset acuan proyek. Sumber lain, catatan bertanggal, pemilik manual, dan isian
+parsial tidak diubah. Impor bersifat idempoten, termasuk ketika data hasil impor
+kemudian sengaja dikosongkan oleh pengelola. Tidak ada perubahan akun/autentikasi.
+Verifikasi akhir: 0 perbedaan jumlah/kondisi terhadap CSV, 5.311 jumlah terisi,
+5.311 kondisi terisi; jumlah warga, koordinat database, dan tanggal tetap NULL.
+Preview ulang menghasilkan 0 perubahan. Pengujian: 37 tes PHP dan 20 tes browser
+lulus, satu uji tile eksternal opsional dilewati. Tidak ada fixture yang tertinggal.
 
 ## Audit CSV dan pencocokan
 
@@ -22,7 +45,8 @@ cache aktif tidak diganti bila input mengandung kode ganda atau tidak ada baris 
 | Kolom berlabel belum listrik bernilai nol | 4.114 |
 | Status sumber belum diverifikasi | 5.311 |
 | Kabupaten/kota yang tercakup dalam CSV | 19 |
-| Perubahan database dari proses ini | 0 |
+| Perubahan database dari persiapan/pemuatan peta | 0 |
+| Pengisian referensi kosong melalui sinkronisasi 4 November | 5.311 |
 
 Kedua CSV asli (`Data Desa Belum Teraliri Listrik.csv` dan `Data Desa Sumber Listrik
 PLN.csv`) juga dibaca dan dibandingkan berdasarkan kode Kemendagri + tahun 2024.
@@ -30,13 +54,17 @@ Masing-masing memiliki 5.311 kode unik tahun 2024, tanpa baris hilang atau perbe
 angka terhadap kolom terkait pada CSV bersih. Tahun lain serta rekap kabupaten pada
 CSV lain tidak digabung atau dijumlahkan.
 
-Definisi indikator pada file berlabel belum listrik belum dapat dikonfirmasi dari
-dokumentasi sumber lokal. Halaman publik yang ditelusuri belum memastikan definisi
-file tersebut. Oleh karena itu seluruh angkanya tampil sebagai **Angka dari CSV —
-belum diverifikasi**, termasuk ketika positif. PLN bukan KK terdampak; tidak ada
-pengurangan angka PLN untuk memperoleh jumlah keluarga tanpa listrik. Angka nol
-bukan bukti seluruh desa sudah berlistrik. Dataset tidak diklaim mencakup seluruh
-desa atau seluruh kabupaten/kota di provinsi.
+Pengguna menyetujui dataset sebagai acuan proyek untuk kondisi tahun 2024.
+Antarmuka menampilkan **Sumber: dataset acuan proyek • Tahun 2024**. Persetujuan
+tersebut bukan survei lapangan atau verifikasi resmi PLN/ESDM. Status asal sumber
+dipertahankan pada artefak untuk audit; identitas verifikator tidak dibuat.
+Jumlah keluarga belum berlistrik > 0 menjadi kategori `has_unserved`, tepat 0 menjadi
+`no_unserved`, dan NULL/tidak cocok menjadi `unavailable`. Data Pemerintah yang lebih
+baru tidak menentukan kategori dataset 2024 dan tetap ditampilkan terpisah.
+PLN bukan KK terdampak; tidak ada pengurangan angka PLN untuk memperoleh jumlah
+keluarga tanpa listrik. Desa dapat mempunyai pengguna PLN dan keluarga belum
+berlistrik sekaligus. Angka nol bukan bukti seluruh desa sudah berlistrik.
+Dataset tidak diklaim mencakup seluruh desa atau seluruh kabupaten/kota di provinsi.
 
 ## Sumber geografis
 
@@ -108,9 +136,19 @@ Wilayah tersebut tetap dapat dicari dan dibaca melalui filter “Lokasi belum te
 - Daftar dipaginasi 15 baris dan tidak dibatasi viewport. Pencarian/filter berlaku
   bersama untuk daftar, ringkasan, dan marker; perubahan filter mengembalikan halaman
   ke 1, membatalkan request lama, dan menghapus penanda kedaluwarsa.
-- Respons membedakan kondisi Pemerintah yang diisi melalui pengelolaan, indikasi CSV,
+- Respons membedakan kondisi Pemerintah yang diisi melalui pengelolaan, kondisi dataset,
   NULL, serta jenis/sumber lokasi. Atribut `created_by`, identitas akun, dan konfigurasi
   MySQL tidak disertakan. Error data, error batas, error tile, serta hasil kosong berbeda.
+- Filter `condition=all|has_unserved|no_unserved`, pencarian, kabupaten, dan lokasi
+  diterapkan bersama. Daftar kabupaten berasal dari data yang cocok dengan wilayah.
+  NULL/tidak cocok hanya muncul pada Semua kondisi. Reset menghapus seluruh filter,
+  pilihan detail, serta pagination; tombol Kembali ke Jawa Barat mengatur viewport.
+- Merah/simbol ! dan biru/simbol 0 digunakan pada penanda desa; NULL memakai abu-abu/?.
+  Kelompok berwarna kategori jika semua anggotanya sama; kelompok campuran navy
+  merinci jumlah desa setiap kategori pada popup. Simbol dan teks membedakan kategori
+  selain warna. Jumlah kelompok adalah jumlah lokasi desa, bukan keluarga.
+- Error screenshot berasal dari MySQL yang berhenti (koneksi 3306 ditolak).
+  Menyalakan MySQL lokal memulihkan endpoint tanpa migrasi atau perubahan data.
 
 ## Pemeriksaan
 
@@ -125,6 +163,14 @@ Chrome juga dipakai untuk pemeriksaan dengan tile OpenStreetMap asli. Pemeriksaa
 seluler merupakan emulasi, bukan perangkat fisik. Belum ada verifikasi lapangan atas
 indikator listrik maupun titik referensi, dan tidak ada lokasi rumah/PLTS yang dibuat.
 
-Hasil akhir: **28 pengujian PHP lulus (268 assertions), 12 pengujian browser lulus**;
-satu uji tile eksternal pada suite normal dilewati sesuai opt-in. Tile asli tetap
-diperiksa terpisah melalui Chrome dan berhasil dimuat. Build Vite berhasil.
+Hasil finalisasi 3 November 2026: **34 pengujian PHP lulus (354 assertions),
+19 pengujian browser lulus**; satu uji tile eksternal pada suite normal dilewati
+sesuai opt-in. Pengujian mencakup kondisi > 0 / = 0 / NULL / tidak cocok, filter
+gabungan kabupaten dan pencarian, reset, detail, loading/error/kosong, mobile
+390/320px, serta regresi CRUD dan autentikasi. Fixture NULL pada pengujian browser
+hanya mengganti respons pengujian; data referensi tidak diubah. Build Vite berhasil.
+Pemeriksaan visual terpisah memakai tile OpenStreetMap asli: 28 respons tile berhasil,
+tidak ada error JavaScript, dan tidak ada overflow pada viewport seluler baru.
+Screenshot lokal: `test-results/peta-final-desktop.png`, `peta-final-positive.png`,
+dan `peta-final-mobile.png` (diabaikan Git). Akhir pengujian: tabel wilayah tetap
+5.311 baris; tidak ada akun `@example.test` atau wilayah fixture yang tertinggal.

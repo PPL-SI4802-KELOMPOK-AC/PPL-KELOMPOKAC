@@ -66,6 +66,7 @@ class CsvDataset
                     'bps_code' => $row['bps_kode_desa_kelurahan'],
                     'kabupaten_code' => $row['bps_kode_kabupaten_kota'],
                     'kabupaten_name' => $row['bps_nama_kabupaten_kota'],
+                    'kecamatan_name' => trim($row['kemendagri_nama_kecamatan'] ?? $row['bps_nama_kecamatan'] ?? '') ?: null,
                     'belum_listrik' => $number('jumlah_keluarga_sumber_belum_listrik'),
                     'pln' => $number('jumlah_keluarga_sumber_pln'),
                     'year' => 2024,

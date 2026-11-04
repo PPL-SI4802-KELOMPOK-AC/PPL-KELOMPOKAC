@@ -29,10 +29,6 @@ class MapData
             throw new RuntimeException('Versi artefak peta tidak cocok; jalankan ulang persiapan dataset/geografi.');
         }
         $districts = [];
-        foreach ($dataset['records'] as $row) {
-            $districts[$row['kabupaten_code']] = ['code' => $row['kabupaten_code'], 'name' => $row['kabupaten_name']];
-        }
-        uasort($districts, fn ($a, $b) => strcmp($a['name'], $b['name']));
         $records = [];
         $matched = 0;
         $excluded = 0;
@@ -66,19 +62,23 @@ class MapData
                 continue;
             }
             $matched += $csv ? 1 : 0;
-            $verified = array_key_exists((string) $region->kondisi_listrik, config('wilayah.kondisi_listrik'));
-            $positive = ($csv['belum_listrik'] ?? 0) > 0;
+            if ($csv) {
+                $districts[$csv['kabupaten_code']] = ['code' => $csv['kabupaten_code'], 'name' => $csv['kabupaten_name']];
+            }
+            $conditionRecorded = array_key_exists((string) $region->kondisi_listrik, config('wilayah.kondisi_listrik'));
+            $families = $csv['belum_listrik'] ?? null;
+            $category = $families === null ? 'unavailable' : ($families > 0 ? 'has_unserved' : 'no_unserved');
             $record = [
                 'id' => $region->id, 'code' => $region->kode_referensi, 'name' => $region->nama_wilayah,
                 'address' => $region->alamat_deskriptif,
                 'government' => [
                     'condition' => $region->kondisi_listrik,
-                    'condition_label' => config('wilayah.kondisi_listrik')[$region->kondisi_listrik] ?? ($region->kondisi_listrik ?: 'Belum diverifikasi'),
-                    'verified' => $verified, 'affected_kk' => $region->jumlah_kk_terdampak,
+                    'condition_label' => config('wilayah.kondisi_listrik')[$region->kondisi_listrik] ?? ($region->kondisi_listrik ?: 'Belum diisi'),
+                    'condition_recorded' => $conditionRecorded, 'affected_kk' => $region->jumlah_kk_terdampak,
                     'observation_date' => $region->data_per_tanggal, 'source' => $region->sumber_data,
                 ],
                 'csv' => $csv,
-                'category' => $verified ? 'verified' : ($positive ? 'csv_positive' : 'unknown'),
+                'category' => $category,
                 'location' => $point ? [
                     'coordinates' => $point, 'type' => 'village_reference', 'label' => 'Lokasi referensi desa',
                     'source' => $locationSource,
@@ -92,8 +92,8 @@ class MapData
             if (! empty($filters['kabupaten']) && ($csv['kabupaten_code'] ?? '') !== $filters['kabupaten']) {
                 continue;
             }
-            $layer = $filters['layer'] ?? 'all';
-            if (($layer === 'verified' && ! $verified) || ($layer === 'csv_positive' && ! $positive) || ($layer === 'unknown' && ($verified || $positive))) {
+            $condition = $filters['condition'] ?? 'all';
+            if ($condition !== 'all' && $category !== $condition) {
                 continue;
             }
             $location = $filters['location'] ?? 'all';
@@ -103,6 +103,7 @@ class MapData
             $records[] = $record;
         }
         $located = array_values(array_filter($records, fn ($r) => $r['location'] !== null));
+        uasort($districts, fn ($a, $b) => strcmp($a['name'], $b['name']));
         $total = count($records);
         $page = min(max(1, (int) ($filters['page'] ?? 1)), max(1, (int) ceil($total / 15)));
         $features = $this->cluster($located, (int) ($filters['zoom'] ?? 8), $filters['bbox'] ?? null);
@@ -110,8 +111,9 @@ class MapData
         return [
             'summary' => [
                 'total' => $total, 'located' => count($located), 'unlocated' => $total - count($located),
-                'verified' => count(array_filter($records, fn ($r) => $r['government']['verified'])),
-                'csv_positive' => count(array_filter($records, fn ($r) => ($r['csv']['belum_listrik'] ?? 0) > 0)),
+                'has_unserved' => count(array_filter($records, fn ($r) => $r['category'] === 'has_unserved')),
+                'no_unserved' => count(array_filter($records, fn ($r) => $r['category'] === 'no_unserved')),
+                'unavailable' => count(array_filter($records, fn ($r) => $r['category'] === 'unavailable')),
             ],
             'matching' => [
                 ...$dataset['report'], 'database_matched' => $matched, 'csv_unmatched' => count($dataset['records']) - $matched,
@@ -119,7 +121,7 @@ class MapData
             ],
             'dataset' => [
                 'year' => 2024, 'file' => $dataset['source_file'], 'sha256' => $dataset['source_sha256'],
-                'verification' => 'Angka dari CSV — belum diverifikasi', 'processed_at' => $dataset['processed_at'],
+                'source_label' => 'Sumber: dataset acuan proyek • Tahun 2024', 'processed_at' => $dataset['processed_at'],
                 'zero_note' => 'Nilai nol tidak membuktikan seluruh desa sudah berlistrik.',
             ],
             'geography' => ['source' => $geography['source'], 'source_url' => $geography['source_url'], 'retrieved_at' => $geography['retrieved_at']],

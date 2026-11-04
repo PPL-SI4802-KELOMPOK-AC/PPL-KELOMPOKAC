@@ -12,15 +12,15 @@
     <div class="notice" role="status" aria-live="polite" data-notice hidden></div>
     <div class="manage-grid">
         <section class="panel list-panel" aria-labelledby="list-title">
-            <div class="panel-heading"><div><h2 id="list-title">Daftar wilayah</h2><p>Data referensi dan hasil verifikasi wilayah</p></div><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg></span></div>
+            <div class="panel-heading"><div><h2 id="list-title">Daftar wilayah</h2><p>Data acuan 2024 dan pembaruan wilayah</p></div><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg></span></div>
             <form class="list-filters" data-filters role="search">
                 <div class="field"><label for="search">Cari wilayah atau alamat</label><input id="search" name="q" type="search" placeholder="Nama desa, kecamatan, atau kabupaten…" maxlength="150" autocomplete="off"></div>
-                <div class="field"><label for="condition-filter">Kondisi listrik</label><select id="condition-filter" name="kondisi"><option value="">Semua kondisi</option><option value="unknown">Belum diverifikasi</option>@foreach($conditions as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select></div>
+                <div class="field"><label for="condition-filter">Kondisi listrik</label><select id="condition-filter" name="kondisi"><option value="">Semua kondisi</option><option value="unknown">Data belum tersedia</option>@foreach($conditions as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select></div>
                 <button class="button filter-submit" type="submit">Cari</button>
             </form>
             <div class="list-message" role="status" aria-live="polite"><span data-list-status>Memuat data wilayah…</span><button class="button" type="button" data-retry hidden>Coba lagi</button></div>
             <div class="table-scroll" tabindex="0" role="region" aria-label="Tabel daftar wilayah" data-table-wrap aria-busy="true">
-                <table class="region-table"><thead><tr><th scope="col">Nama wilayah / alamat</th><th scope="col">KK terdampak</th><th scope="col">Kondisi listrik</th><th scope="col">Tindakan</th></tr></thead><tbody data-rows></tbody></table>
+                <table class="region-table"><thead><tr><th scope="col">Nama wilayah / alamat</th><th scope="col">Keluarga / KK terdampak</th><th scope="col">Kondisi listrik</th><th scope="col">Tindakan</th></tr></thead><tbody data-rows></tbody></table>
             </div>
             <div class="pagination"><span data-result-count>Menunggu data</span><div><button class="button" type="button" data-prev disabled aria-label="Halaman sebelumnya">‹</button><span data-page>1</span><button class="button" type="button" data-next disabled aria-label="Halaman berikutnya">›</button></div></div>
         </section>
@@ -44,7 +44,8 @@
                     <div class="field"><label for="jumlah_kk_terdampak">Jumlah KK terdampak</label><input id="jumlah_kk_terdampak" name="jumlah_kk_terdampak" type="number" min="0" max="4294967295" step="1" inputmode="numeric" placeholder="Belum tersedia"><span class="field-error" id="error-jumlah_kk_terdampak"></span></div>
                     <div class="field"><label for="jumlah_warga_terdampak">Jumlah warga terdampak</label><input id="jumlah_warga_terdampak" name="jumlah_warga_terdampak" type="number" min="0" max="4294967295" step="1" inputmode="numeric" placeholder="Belum tersedia"><span class="field-error" id="error-jumlah_warga_terdampak"></span></div>
                 </div>
-                <div class="field"><label for="kondisi_listrik">Kondisi elektrifikasi</label><select id="kondisi_listrik" name="kondisi_listrik"><option value="">Belum diverifikasi</option>@foreach($conditions as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select><span class="field-error" id="error-kondisi_listrik"></span></div>
+                <p class="form-help">Pada dataset acuan 2024, jumlah KK terdampak menggunakan angka keluarga belum berlistrik. Nilai 0 berarti tidak tercatat pada dataset.</p>
+                <div class="field"><label for="kondisi_listrik">Kondisi elektrifikasi</label><select id="kondisi_listrik" name="kondisi_listrik"><option value="">Belum diisi</option>@foreach($conditions as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select><span class="field-error" id="error-kondisi_listrik"></span></div>
                 <details class="supporting-info"><summary>Informasi pendukung</summary><div class="supporting-fields">
                     <div class="field"><label for="sumber_data">Sumber data</label><input id="sumber_data" name="sumber_data" maxlength="255" placeholder="Sumber informasi atau hasil survei"><span class="field-error" id="error-sumber_data"></span></div>
                     <div class="field"><label for="data_per_tanggal">Tanggal pengamatan</label><input id="data_per_tanggal" name="data_per_tanggal" type="date"><span class="field-error" id="error-data_per_tanggal"></span></div>
@@ -53,7 +54,7 @@
             </form>
         </section>
     </div>
-    <p class="reference-note">Data referensi administratif tahun 2024 bukan bukti bahwa suatu desa belum berlistrik. Kondisi yang belum diketahui tetap perlu diverifikasi.</p>
+    <p class="reference-note">Sumber: dataset acuan proyek • Tahun 2024. Angka keluarga tidak menyatakan jumlah rumah. Satu desa dapat memiliki pengguna PLN sekaligus keluarga belum berlistrik.</p>
     <noscript><p class="notice">Aktifkan JavaScript untuk mencari dan mengelola data wilayah.</p></noscript>
 </div>
 @endsection

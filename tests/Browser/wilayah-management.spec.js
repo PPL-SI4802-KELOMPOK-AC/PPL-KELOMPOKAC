@@ -53,7 +53,7 @@ test.describe('PBI-01 dengan MySQL', () => {
         await expect(page.locator('[data-rows] tr')).toHaveCount(1);
         const row = page.locator('[data-rows] tr');
         await expect(row).toContainText('Belum tersedia');
-        await expect(row).toContainText('Belum diverifikasi');
+        await expect(row).toContainText('Data belum tersedia');
         await row.getByRole('button', { name: `Edit ${name}`, exact: true }).click();
         await expect(page.getByLabel('Lintang', { exact: true })).toHaveValue('-6.2500000');
         await expect(row).toHaveClass('is-selected');
@@ -128,6 +128,31 @@ test.describe('PBI-01 dengan MySQL', () => {
         await expect(page).toHaveURL(/\/login$/);
         await page.goto('/pemerintah/wilayah');
         await expect(page).toHaveURL(/\/login$/);
+    });
+
+    test('data acuan CSV tersimpan tampil sebagai nol atau positif dan terbaca saat edit', async ({ page }) => {
+        await page.getByLabel('Cari wilayah atau alamat').fill('MALASARI, NANGGUNG');
+        await expect(page.locator('[data-rows] tr')).toHaveCount(1);
+        const row = page.locator('[data-rows] tr');
+        await expect(row).toContainText('Tidak tercatat KK belum berlistrik');
+        await expect(row.locator('td').nth(1)).toHaveText('0keluarga · 2024');
+        await row.getByRole('button', { name: 'Edit MALASARI', exact: true }).click();
+        await expect(page.getByLabel('Jumlah KK terdampak')).toHaveValue('0');
+        await expect(page.getByLabel('Kondisi elektrifikasi')).toHaveValue('tidak_tercatat_kk_belum_berlistrik');
+        await page.locator('.supporting-info summary').click();
+        await expect(page.getByLabel('Sumber data', { exact: true })).toHaveValue('Dataset acuan proyek; tahun 2024; satuan keluarga');
+        await expect(page.getByLabel('Tanggal pengamatan')).toHaveValue('');
+        await page.getByRole('button', { name: 'Batal', exact: true }).click();
+        await page.getByLabel('Kondisi listrik', { exact: true }).selectOption('ada_kk_belum_berlistrik');
+        await page.getByLabel('Cari wilayah atau alamat').fill('ANJUN, PLERED');
+        await expect(page.locator('[data-rows] tr')).toHaveCount(1);
+        await expect(page.locator('[data-rows] tr')).toContainText('Ada KK belum berlistrik');
+        await expect(page.locator('[data-rows] tr td').nth(1)).toHaveText('6keluarga · 2024');
+        await page.screenshot({ path: 'test-results/wilayah-csv-2024.png', fullPage: true });
+        for (const width of [390, 320]) {
+            await page.setViewportSize({ width, height: 844 });
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        }
     });
 
     test('desktop dan seluler, drawer keyboard, tanpa overflow dan tanpa animasi dekoratif', async ({ page }) => {

@@ -1,6 +1,12 @@
 .map-page .map-panel { animation: none; }
-.map-filters { display: grid; grid-template-columns: minmax(150px, 1.3fr) minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(130px, 1fr) auto; align-items: end; gap: 12px; padding: 20px; border-bottom: 1px solid var(--border); }
-.map-filters .field select, .map-filters .field input { font-size: 12px; }
+.map-filters { display: grid; grid-template-columns: minmax(160px, 1.2fr) minmax(240px, 1.2fr) minmax(190px, 1fr) auto auto; align-items: end; gap: 12px; padding: 20px; border-bottom: 1px solid var(--border); }
+.map-filters .field { min-width: 0; }
+.map-filters .field select, .map-filters .field input { width: 100%; min-height: 46px; font-size: 13px; border: 1px solid #cbdbe5; border-radius: 8px; padding: 11px 12px; background-color: #fff; color: #173d55; }
+.map-filters .field select { padding-right: 30px; }
+.map-filters .field :is(select, input):focus-visible { outline: 2px solid #1679aa; outline-offset: 2px; }
+.map-advanced { grid-column: 1/-1; color: #48677c; font-size: 12px; }
+.map-advanced summary { cursor: pointer; width: fit-content; padding: 4px 0; }
+.map-advanced .field { max-width: 310px; margin-top: 12px; }
 .map-data-status { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; background: #f9fbfc; color: #456278; border-bottom: 1px solid var(--border); font-size: 12px; line-height: 1.7; }
 .map-data-status[data-map-data-state=error] { color: #a1382c; background: #fff3ef; }
 .map-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; }
@@ -16,13 +22,16 @@
 .detail-block dl { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0 0 10px; font-size: 11px; line-height: 1.7; }
 .detail-block dt { color: #60778a; }
 .detail-block dd { margin: 0; color: #28465b; font-weight: 600; text-align: right; max-width: 125px; }
-.detail-block .verification-label { background: #fff5db; color: #795818; padding: 7px 9px; border-radius: 6px; font-size: 10px; }
+.condition-label { display: inline-block; font-size: 11px; line-height: 1.7; font-weight: 600; }
+.condition-label.has_unserved { color: #b33336; }
+.condition-label.no_unserved { color: #22689d; }
+.condition-label.unavailable { color: #596c7c; }
 .detail-block .source-text { font-size: 10px; line-height: 1.7; }
 .map-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid var(--border); color: #4d687b; font-size: 10px; line-height: 1.6; }
 .map-legend > span { display: inline-flex; gap: 6px; align-items: center; }
-.legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; background: #8291a0; }
-.legend-dot.verified { background: #2875a8; }
-.legend-dot.csv_positive { background: #d79000; }
+.legend-dot { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; flex-shrink: 0; background: #657789; color: #fff; font-size: 11px; font-style: normal; font-weight: 700; }
+.legend-dot.has_unserved { background: #bb363b; }
+.legend-dot.no_unserved { background: #226fa6; }
 .legend-cluster { display: inline-grid; place-items: center; width: 19px; height: 19px; background: #0d3f5b; color: #fff; border-radius: 50%; font-style: normal; }
 .boundary-status { padding: 8px 18px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--border); color: #617a8b; font-size: 10px; }
 .map-page .map-list { margin-top: 20px; }
@@ -42,22 +51,24 @@
 .map-sources summary { cursor: pointer; font-weight: 600; color: #264b63; }
 .map-sources a { color: #176c9a; text-decoration: underline; text-underline-offset: 3px; }
 .village-icon, .cluster-icon { background: transparent; border: 0; }
-.village-dot { display: block; width: 20px; height: 20px; margin: 3px; border: 3px solid #fff; border-radius: 50%; background: #8291a0; box-shadow: 0 1px 5px #0d3f5b40; }
-.village-dot.verified { background: #2875a8; }
-.village-dot.csv_positive { background: #d79000; }
+.village-dot { display: grid; place-items: center; width: 26px; height: 26px; margin: 2px; border: 3px solid #fff; border-radius: 50%; background: #657789; color: #fff; font: 700 13px/1 'Segoe UI', sans-serif; box-shadow: 0 1px 5px #0d3f5b40; }
+.village-dot.has_unserved { background: #bb363b; }
+.village-dot.no_unserved { background: #226fa6; }
 .cluster-bubble { display: grid; place-items: center; width: 42px; height: 42px; border: 3px solid #fff; background: #0d3f5b; color: #fff; font-size: 12px; font-weight: 600; border-radius: 50%; box-shadow: 0 2px 7px #0d3f5b38; }
-.cluster-bubble.csv_positive { background: #a86e00; }
-.cluster-bubble.verified { background: #2875a8; }
-.cluster-bubble.unknown { background: #607589; }
+.cluster-bubble.has_unserved { background: #bb363b; }
+.cluster-bubble.no_unserved { background: #226fa6; }
+.cluster-bubble.unavailable { background: #657789; }
 .map-popup { min-width: 190px; max-width: 270px; font: 12px/1.7 'Segoe UI', sans-serif; color: #29465d; }
 .map-popup h3 { font-size: 14px; margin: 0 0 7px; }
 .map-popup p { margin: 5px 0; font-size: 11px; }
 .map-popup .button { margin-top: 9px; }
-@media (max-width: 1250px) { .map-filters { grid-template-columns: 1fr 1fr; } .map-filters > button { justify-self: start; } .map-workspace { grid-template-columns: minmax(0, 1fr) 240px; } }
+@media (max-width: 1400px) { .map-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .map-filters .field:first-child { grid-column: 1/-1; } .map-filters > button { width: 100%; } }
+@media (max-width: 1250px) { .map-workspace { grid-template-columns: minmax(0, 1fr) 240px; } }
 @media (max-width: 1000px) { .map-workspace { grid-template-columns: minmax(0, 1fr); } .map-detail { max-height: 380px; border-left: 0; border-top: 1px solid var(--border); } .map-page [data-region-map] { height: 530px; } }
 @media (max-width: 760px) {
-    .map-filters { padding: 16px; grid-template-columns: 1fr 1fr; }
+    .map-filters { padding: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .map-filters .field:first-child { grid-column: 1/-1; }
+    .map-filters > .field { grid-column: 1/-1; }
     .map-filters .field select, .map-filters .field input { font-size: 16px; }
     .map-filters > button { width: 100%; }
     .map-data-status { padding: 12px 16px; flex-wrap: wrap; font-size: 11px; }
@@ -68,4 +79,3 @@
     .map-detail h2 { font-size: 18px; }
     .map-legend > span { max-width: 100%; }
 }
-@media (max-width: 400px) { .map-filters { grid-template-columns: minmax(0, 1fr); } }

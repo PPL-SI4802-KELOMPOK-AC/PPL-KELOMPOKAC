@@ -37,7 +37,11 @@ class RegionMapTest extends TestCase
             ->assertSee('Memuat peta dasar')
             ->assertSee('Coba lagi')
             ->assertSee('tahun 2024')
-            ->assertSee('masih memerlukan verifikasi');
+            ->assertSee('Sumber: dataset acuan proyek • Tahun 2024')
+            ->assertSee('Ada KK belum berlistrik')
+            ->assertSee('Tidak tercatat KK belum berlistrik')
+            ->assertDontSee('Lapisan data')
+            ->assertDontSee('Indikasi CSV');
     }
 
     public function test_only_public_map_configuration_is_rendered(): void

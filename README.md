@@ -22,7 +22,8 @@ Definisi metrik:
   dengan pasangan 0,0 dikecualikan. Ini pemeriksaan kelengkapan/rentang koordinat,
   bukan bukti pemeriksaan lapangan dan bukan jumlah titik referensi poligon peta.
 - Kondisi diisi: nilai yang dikenali pada domain aplikasi (`belum_berlistrik`,
-  `akses_terbatas`, `sudah_berlistrik`). NULL, kosong, status `belum_diverifikasi`,
+  `akses_terbatas`, `sudah_berlistrik`, `ada_kk_belum_berlistrik`,
+  `tidak_tercatat_kk_belum_berlistrik`). NULL, kosong, status `belum_diverifikasi`,
   dan nilai lain yang belum dikenali tidak dihitung sebagai kondisi yang lengkap.
   Isian tidak disebut sebagai data terverifikasi; skema belum mencatat bukti verifikasi.
 
@@ -76,7 +77,8 @@ publik maupun akun Pemerintah bawaan.
 Database lokal yang diperiksa adalah **`terangdesa`**, berisi 5.311 data referensi
 wilayah. Konfigurasi lokal `.env` telah diarahkan ke database tersebut dengan
 `DB_COLLATION=utf8mb4_unicode_ci` agar sesuai MySQL/MariaDB XAMPP. Tidak ada perubahan
-skema, impor CSV, migrasi, seeder, maupun pengosongan tabel. Gunakan database yang
+skema, migrasi, seeder, maupun pengosongan tabel. Sinkronisasi kolom kosong dari CSV
+tersedia melalui perintah terpisah di bawah. Gunakan database yang
 sudah memiliki tabel `users`, `wilayah`, `pengajuan_plts`, dan `progres_elektrifikasi`.
 Migrasi kerangka Laravel pada repository bukan pembentuk skema domain yang sudah ada;
 **jangan menjalankan migrate:fresh atau migrate untuk menyiapkan dataset ini**.
@@ -105,8 +107,9 @@ Fitur yang tersedia:
   dengan maksimal 7 desimal, masukan desimal koma, jumlah bulat nonnegatif sesuai
   batas `INT UNSIGNED`, serta tanggal pengamatan lengkap yang opsional.
 - Nilai kosong tetap NULL: jumlah ditampilkan “Belum tersedia”, kondisi ditampilkan
-  “Belum diverifikasi”. Domain kondisi yang disepakati tersimpan di `config/wilayah.php`:
-  `belum_berlistrik`, `akses_terbatas`, dan `sudah_berlistrik`.
+  “Data belum tersedia”. Pilihan kondisi manual: `belum_berlistrik`, `akses_terbatas`,
+  dan `sudah_berlistrik`. Indikator keluarga dari dataset 2024 memakai
+  `ada_kk_belum_berlistrik` dan `tidak_tercatat_kk_belum_berlistrik`.
 - `created_by` berasal dari sesi saat tambah, tetap dipertahankan saat edit. Request
   hanya boleh mengisi field formulir yang divalidasi; lokasi/kebutuhan pengajuan
   tidak diperbarui oleh fitur ini.
@@ -126,7 +129,39 @@ kecamatan tidak mempunyai kolom/relasi terstruktur; alamat lengkap ditampilkan d
 dapat dicari tanpa menebak pemisahan administratif. Jarak jaringan dan catatan wilayah
 tidak ditampilkan karena tidak ada kolom penyimpanan. Tahun 2024 tidak dijadikan tanggal
 pengamatan. Kondisi listrik terpisah dari progres pemasangan, dan data referensi
-tidak dilabeli “Data contoh”. Tidak ada perubahan fitur marker/detail/pengajuan.
+tidak dilabeli “Data contoh”.
+
+### Sinkronisasi data acuan 2024
+
+Pada 4 November 2026, atas permintaan pengguna, kolom jumlah dan kondisi yang masih
+NULL pada 5.311 wilayah diisi dari CSV berdasarkan kode Kemendagri yang sama. Jumlah
+`jumlah_keluarga_sumber_belum_listrik` disimpan ke `jumlah_kk_terdampak`, dengan satuan
+**keluarga** yang ditampilkan pada tabel/formulir. Ada 1.197 desa dengan nilai > 0 dan
+4.114 desa dengan nilai 0. Angka PLN tidak digunakan untuk menghitung KK terdampak.
+Tidak ada pengisian jumlah warga, koordinat, pembuat data, atau tanggal pengamatan
+rekaan. Sumber impor lama diperbarui menjadi `Dataset acuan proyek; tahun 2024; satuan keluarga`.
+
+```powershell
+# Preview dan pemetaan setiap kode, belum mengubah database:
+php artisan wilayah:sync-csv
+# Terapkan hanya pada referensi yang jumlah dan kondisinya masih NULL:
+php artisan wilayah:sync-csv --apply
+```
+
+Perintah membaca CSV di backend dan menulis audit nilai sebelum/sesudah ke
+`storage/app/imports/` sebelum commit transaksi. Berkas ini lokal dan diabaikan Git.
+Isian parsial, pemilik manual, pengamatan bertanggal, atau sumber data lain dilindungi.
+Impor ulang tidak menimpa nilai yang sudah tersimpan, termasuk nol dan NULL yang
+sengaja dikosongkan setelah impor. Dataset kosong/duplikat/angka atau periode tidak
+valid ditolak; kegagalan membatalkan transaksi. Kelola Data Wilayah dan dashboard
+membaca nilai database yang sama; peta tetap menampilkan angka dataset 2024 dan
+catatan aplikasi secara terpisah. Persetujuan dataset bukan verifikasi lapangan.
+
+Pemeriksaan sinkronisasi: 37 pengujian PHP dan 20 pengujian browser lulus, satu uji
+tile eksternal opsional dilewati. Uji tambahan mencakup preview tanpa penulisan,
+rollback, perlindungan isian parsial/manual/NULL setelah edit, impor idempoten, dan
+pembukaan nilai CSV melalui formulir Edit. Verifikasi akhir menemukan 0 perbedaan
+jumlah/kondisi terhadap CSV, 0 fixture tersisa, dan tetap 5.311 baris wilayah.
 
 ### Pengujian PBI-01
 
@@ -168,11 +203,15 @@ mockup dan tile peta eksternal tidak diverifikasi pada PBI-01.
 
 Buka **Beranda → Peta Wilayah** atau `/peta-wilayah` (route `wilayah.map`). Peta Leaflet kini terhubung ke tabel `wilayah` dan CSV 2024 yang sudah diproses di backend. Batas administratif Jawa Barat diberi outline, area di luarnya ditutupi mask, dan navigasi dibatasi di sekitar provinsi. Tersedia drag, zoom, keyboard, dan tombol **Kembali ke Jawa Barat**.
 
-Tampilan memakai sidebar navy, aksen kuning, header putih, dan panel terang. Pada seluler sidebar menjadi drawer dengan dukungan keyboard. Peta tidak memakai parallax atau efek cahaya dekoratif. Pencarian, filter lapisan data, kabupaten/kota, ketersediaan lokasi, legenda, serta panel informasi tersedia pada halaman yang sama.
+Tampilan memakai sidebar navy, aksen kuning, header putih, dan panel terang. Pada seluler sidebar menjadi drawer dengan dukungan keyboard. Filter utama: pencarian wilayah, kondisi listrik, kabupaten/kota, Terapkan, dan Reset. Ketersediaan lokasi berada pada Filter lanjutan; secara awal wilayah tanpa lokasi tetap masuk daftar.
+
+Finalisasi 3 November 2026 menggunakan dataset acuan yang disetujui pengguna untuk proyek. Kondisi `has_unserved` berarti jumlah keluarga belum berlistrik > 0 (merah, simbol !); `no_unserved` berarti tepat 0 (biru, simbol 0). NULL/tidak cocok menjadi `unavailable` (abu-abu, simbol ?) dan tidak masuk kategori nol. Kategori penanda mengikuti dataset 2024 meskipun data Pemerintah lebih baru; pembaruan Pemerintah ditampilkan terpisah di detail dan tidak ditimpa. Nilai positif PLN tidak digunakan untuk menyimpulkan seluruh warga sudah berlistrik. Persetujuan dataset bukan survei lapangan atau verifikasi resmi PLN/ESDM.
 
 Endpoint baca publik `/peta-wilayah/data` mempertahankan akses publik peta sebelumnya; seluruh endpoint pengelolaan tetap dibatasi role Pemerintah. Rate limiter data peta dan login memakai nama terpisah agar aktivitas menjelajah tidak menghabiskan kuota login. Halaman dasar dapat dirender tanpa DB; pemuatan data memiliki status/error/retry sendiri. Permintaan koordinat viewport dan zoom menghasilkan kelompok penanda di backend, sehingga browser tidak menerima seluruh 5.311 baris. Daftar wilayah dipaginasi 15 baris.
 
-Hasil integrasi 2 November 2026: **5.311/5.311 kode cocok**, tanpa duplikat atau nilai berbeda ketika dibandingkan dengan dua CSV asli periode 2024. Ada **1.197 angka positif** dan **4.114 nol** pada kolom berlabel belum listrik. Semua masih belum diverifikasi. **5.304 wilayah** mempunyai lokasi referensi yang sah; **7** masuk daftar lokasi belum tersedia. Tidak ada koordinat acak, geocoding massal, perubahan skema, impor ulang, atau penulisan nilai CSV ke tabel wilayah. Titik desa bukan titik rumah, kelompok KK, maupun calon pemasangan PLTS. Lihat [laporan sumber, metode, dan keterbatasan](docs/map-data.md).
+Audit ulang 3 November 2026: **5.311/5.311 kode cocok**, 0 duplikat, **1.197 desa dengan keluarga belum berlistrik**, **4.114 desa dengan nilai nol**, 0 NULL pada sumber aktual, 19 kabupaten/kota dalam dataset. **5.304 wilayah** mempunyai lokasi referensi yang sah; **7** masuk daftar lokasi belum tersedia. Tidak ada koordinat acak, perubahan skema, impor ulang, atau penulisan nilai CSV ke tabel wilayah. Titik desa menunjukkan lokasi referensi. Lihat [laporan sumber, metode, dan keterbatasan](docs/map-data.md).
+
+Jika data gagal dimuat dengan log `SQLSTATE[HY000] [2002] ... actively refused`, aktifkan **MySQL pada XAMPP Control Panel**, lalu klik **Coba lagi data**. Peta dasar dan data wilayah memiliki status terpisah. Error layanan tidak menyatakan hasil pencarian nol; loading data berhenti saat berhasil, gagal, atau melewati timeout 15 detik. Tidak perlu migrasi atau impor ulang untuk mengatasi layanan MySQL yang berhenti.
 
 Siapkan cache CSV pada instalasi baru atau setelah CSV diperbarui:
 

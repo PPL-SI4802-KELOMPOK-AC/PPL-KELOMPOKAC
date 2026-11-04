@@ -13,7 +13,7 @@ class RegionMapController extends Controller
     {
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
-            'layer' => ['nullable', Rule::in(['all', 'verified', 'csv_positive', 'unknown'])],
+            'condition' => ['nullable', Rule::in(['all', 'has_unserved', 'no_unserved'])],
             'location' => ['nullable', Rule::in(['all', 'available', 'missing'])],
             'kabupaten' => ['nullable', 'regex:/^32\d{2}$/'],
             'page' => ['nullable', 'integer', 'min:1', 'max:1000000'],
@@ -37,7 +37,7 @@ class RegionMapController extends Controller
         } catch (\Throwable $exception) {
             report($exception);
 
-            return response()->json(['message' => 'Data wilayah belum dapat dimuat. Periksa koneksi MySQL dan cache dataset/geografi, lalu coba lagi.'], 503);
+            return response()->json(['message' => 'Layanan data sedang tidak tersedia. Silakan coba lagi beberapa saat.'], 503)->header('Cache-Control', 'no-store');
         }
     }
 }
