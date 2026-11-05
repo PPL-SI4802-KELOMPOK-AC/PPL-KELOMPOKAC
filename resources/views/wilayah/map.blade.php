@@ -10,7 +10,7 @@
     </section>
     <section class="map-panel" data-map-panel data-state="loading" aria-label="Peta wilayah Jawa Barat">
         <form class="map-filters" data-map-filters role="search">
-            <div class="field"><label for="map-search">Cari wilayah</label><input id="map-search" name="q" type="search" maxlength="150" placeholder="Nama desa atau alamat…" autocomplete="off"></div>
+            <div class="field map-search-field"><label for="map-search">Cari wilayah</label><input id="map-search" name="q" type="search" maxlength="150" placeholder="Nama desa atau alamat…" autocomplete="off" aria-autocomplete="list" aria-controls="map-search-suggestions" aria-expanded="false"><div id="map-search-suggestions" class="map-search-suggestions" role="listbox" aria-label="Saran wilayah" hidden></div></div>
             <div class="field"><label for="map-condition">Kondisi listrik</label><select id="map-condition" name="condition"><option value="all">Semua kondisi</option><option value="has_unserved">Ada KK belum berlistrik</option><option value="no_unserved">Tidak tercatat KK belum berlistrik</option></select></div>
             <div class="field"><label for="map-kabupaten">Kabupaten/kota</label><select id="map-kabupaten" name="kabupaten"><option value="">Semua kabupaten/kota</option></select></div>
             <button class="button button--primary" type="submit">Terapkan</button>

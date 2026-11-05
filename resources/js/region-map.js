@@ -10,6 +10,7 @@ const detailPanel = document.querySelector('[data-map-detail-panel]');
 const closeDetail = document.querySelector('[data-map-close-detail]');
 const showDetail = document.querySelector('[data-map-show-detail]');
 const filters = document.querySelector('[data-map-filters]');
+const searchSuggestions = document.querySelector('#map-search-suggestions');
 const dataStatus = document.querySelector('[data-map-data-status]');
 const dataState = document.querySelector('[data-map-data-state]');
 const dataRetry = document.querySelector('[data-map-data-retry]');
@@ -26,7 +27,7 @@ const familyCount = value => value === null || value === undefined ? 'Data belum
 let homeBounds = L.latLngBounds([[-7.85, 106.35], [-5.9, 108.85]]);
 let tileLayer, tileTimeout, tileFailed = false, disposed = false, zooming = false, resetAfterZoom = false;
 let provinceLayer, maskLayer, boundaryReady = false;
-let dataAbort, debounce, page = 1, lastPage = 1, selectedId = null;
+let dataAbort, debounce, page = 1, lastPage = 1, selectedId = null, searchRecords = [];
 let districtOptionsLoaded = false;
 const initial = new URLSearchParams(location.search);
 filters.elements.q.value = (initial.get('q') ?? '').slice(0, 150);
@@ -299,6 +300,33 @@ function renderList(list) {
     document.querySelector('[data-map-next]').disabled = page >= lastPage;
     const empty = document.querySelector('[data-map-empty]'); empty.hidden = list.total !== 0;
     empty.textContent = 'Tidak ada wilayah yang sesuai pencarian atau filter. Peta dasar tetap dapat digunakan.';
+    searchRecords = list.data;
+    renderSearchSuggestions(searchRecords);
+}
+function renderSearchSuggestions(records) {
+    const query = filters.elements.q.value.trim();
+    searchSuggestions.replaceChildren();
+    if (!query || document.activeElement !== filters.elements.q || !records.length) {
+        searchSuggestions.hidden = true;
+        filters.elements.q.setAttribute('aria-expanded', 'false');
+        return;
+    }
+    for (const record of records.slice(0, 6)) {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'map-search-suggestion';
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-label', `${record.name}, ${record.address || 'alamat belum tersedia'}`);
+        option.append(textNode('strong', record.name), textNode('small', record.address || 'Alamat belum tersedia'));
+        option.addEventListener('click', () => {
+            searchSuggestions.hidden = true;
+            filters.elements.q.setAttribute('aria-expanded', 'false');
+            selectRegion(record, true);
+        });
+        searchSuggestions.append(option);
+    }
+    searchSuggestions.hidden = false;
+    filters.elements.q.setAttribute('aria-expanded', 'true');
 }
 async function loadData() {
     if (disposed) return;
@@ -353,6 +381,8 @@ async function loadData() {
     }
 }
 function filterChanged() {
+    searchSuggestions.hidden = true;
+    filters.elements.q.setAttribute('aria-expanded', 'false');
     clearTimeout(debounce); dataAbort?.abort(); page = 1;
     selectedId = null; selection.clearLayers(); map.closePopup();
     clearAreas(); rows.replaceChildren();
@@ -386,6 +416,21 @@ filters.addEventListener('reset', event => {
     filterChanged(); clearTimeout(debounce); loadData();
 });
 filters.elements.q.addEventListener('input', filterChanged);
+filters.elements.q.addEventListener('focus', () => renderSearchSuggestions(searchRecords));
+filters.elements.q.addEventListener('blur', () => setTimeout(() => {
+    searchSuggestions.hidden = true;
+    filters.elements.q.setAttribute('aria-expanded', 'false');
+}, 150));
+filters.elements.q.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+        searchSuggestions.hidden = true;
+        filters.elements.q.setAttribute('aria-expanded', 'false');
+    }
+    if (event.key === 'ArrowDown' && !searchSuggestions.hidden) {
+        event.preventDefault();
+        searchSuggestions.querySelector('button')?.focus();
+    }
+});
 for (const name of ['condition', 'location', 'kabupaten']) filters.elements[name].addEventListener('change', filterChanged);
 document.querySelector('[data-map-prev]').addEventListener('click', () => { if (page > 1) { page--; loadData(); } });
 document.querySelector('[data-map-next]').addEventListener('click', () => { if (page < lastPage) { page++; loadData(); } });
