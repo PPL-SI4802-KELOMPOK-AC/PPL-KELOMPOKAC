@@ -15,7 +15,7 @@ class LokasiPengajuanController extends Controller
 {
     public function edit(Request $request, LocationCatalog $catalog)
     {
-        $draft = PengajuanPlts::with('lokasi')->where('user_id', $request->user()->id)
+        $draft = PengajuanPlts::with(['lokasi', 'bukti'])->where('user_id', $request->user()->id)
             ->where('status_terkini', 'draft')->latest('id')->first();
         $values = $draft?->lokasi ? $catalog->addressFields($draft->lokasi->alamat_deskriptif) : [];
         $values += ['kabupaten' => '', 'kecamatan' => '', 'desa' => '', 'alamat' => ''];

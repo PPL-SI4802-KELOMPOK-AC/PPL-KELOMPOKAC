@@ -6,6 +6,12 @@ if (document.querySelector('[data-location-form]')) {
     });
 }
 
+if (document.querySelector('[data-evidence-upload]')) {
+    import('./evidence-upload').catch(() => {
+        document.querySelector('[data-evidence-status]').textContent = 'Preview foto gagal dimuat. Muat ulang halaman untuk mencoba kembali.';
+    });
+}
+
 if (document.querySelector('[data-dashboard]')) {
     import('./dashboard').catch(() => {
         const status = document.querySelector('[data-dashboard-status]');
