@@ -66,8 +66,10 @@ lokal ketika query gagal. Data asli CSV tetap menjadi arsip di folder dataset pe
 - `/login` memakai autentikasi sesi Laravel, CSRF, regenerasi sesi, dan limiter login.
 - `/pemerintah/wilayah` dibatasi role `pemerintah`. Daftar 15 baris per halaman,
   pencarian nama/alamat, filter kondisi, tambah/edit, serta hapus mengikuti data online.
-- `/dashboard/data` menghitung agregasi langsung dari tabel wilayah. Kondisi NULL
-  ditampilkan sebagai belum diketahui. Metrik koordinat menghitung isian tersimpan.
+- `/dashboard/data` menghitung jumlah KK belum berlistrik langsung dari tabel wilayah.
+  NULL tetap belum tersedia dan nol tetap nol. Grafik mengelompokkan jumlah wilayah
+  menurut isian KK positif/nol/NULL. Jumlah KK sudah berlistrik belum tersedia;
+  tidak disimpulkan dari kondisi manual atau dari wilayah bernilai nol.
 - `/peta-wilayah/data` membaca wilayah, jumlah KK, sumber, tanggal, dan koordinat
   dari TiDB. Halaman menampilkan area kabupaten/kota dan desa dengan warna dari data ini.
   Wilayah tanpa koordinat tetap tampil pada daftar dan detail.

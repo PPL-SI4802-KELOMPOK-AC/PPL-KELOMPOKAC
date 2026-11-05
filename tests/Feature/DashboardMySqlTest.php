@@ -44,45 +44,53 @@ class DashboardMySqlTest extends TestCase
         return $user;
     }
 
-    public function test_metrics_and_categories_keep_null_blank_pending_and_real_conditions_distinct(): void
+    public function test_family_counts_keep_positive_zero_and_null_separate_from_manual_condition(): void
     {
         $baseline = app(DashboardSummary::class)->data();
         foreach ([
-            ['kondisi_listrik' => null], ['kondisi_listrik' => ''], ['kondisi_listrik' => '   '],
-            ['kondisi_listrik' => 'belum_diverifikasi'],
-            ['kondisi_listrik' => 'belum_berlistrik', 'latitude' => -6.9, 'longitude' => 107.6],
-            ['kondisi_listrik' => 'sudah_berlistrik', 'latitude' => 0, 'longitude' => 0],
-            ['kondisi_listrik' => 'akses_terbatas', 'latitude' => -7, 'longitude' => 108],
-            ['kondisi_listrik' => 'Nilai lama'],
+            ['kondisi_listrik' => 'sudah_berlistrik', 'jumlah_kk_terdampak' => null],
+            ['kondisi_listrik' => '', 'jumlah_kk_terdampak' => 0],
+            ['kondisi_listrik' => '   ', 'jumlah_kk_terdampak' => 5],
+            ['kondisi_listrik' => 'belum_diverifikasi', 'jumlah_kk_terdampak' => 9],
+            ['kondisi_listrik' => 'belum_berlistrik', 'jumlah_kk_terdampak' => 12],
+            ['kondisi_listrik' => 'sudah_berlistrik', 'jumlah_kk_terdampak' => 0],
+            ['kondisi_listrik' => 'akses_terbatas', 'jumlah_kk_terdampak' => null],
+            ['kondisi_listrik' => 'Nilai lama', 'jumlah_kk_terdampak' => 1],
         ] as $fixture) Wilayah::create($this->payload($fixture));
         $response = $this->getJson('/dashboard/data')->assertOk()
             ->assertJsonPath('metrics.total', $baseline['metrics']['total'] + 8)
-            ->assertJsonPath('metrics.valid_coordinates', $baseline['metrics']['valid_coordinates'] + 2)
-            ->assertJsonPath('metrics.condition_filled', $baseline['metrics']['condition_filled'] + 3);
+            ->assertJsonPath('metrics.unserved_kk', ($baseline['metrics']['unserved_kk'] ?? 0) + 27)
+            ->assertJsonPath('metrics.served_kk', null)
+            ->assertJsonPath('coverage.kk_recorded', $baseline['coverage']['kk_recorded'] + 6)
+            ->assertJsonPath('coverage.kk_unknown', $baseline['coverage']['kk_unknown'] + 2);
         $categories = collect($response->json('categories'));
-        $unknown = collect($baseline['categories'])->firstWhere('id', 'unknown')['count'] ?? 0;
-        $this->assertSame($unknown + 3, $categories->firstWhere('id', 'unknown')['count']);
-        $this->assertFalse($categories->firstWhere('value', 'belum_diverifikasi')['condition_filled']);
-        $this->assertFalse($categories->firstWhere('value', 'Nilai lama')['condition_filled']);
+        foreach (['has_unserved' => 4, 'no_unserved' => 2, 'unavailable' => 2] as $key => $increment) {
+            $old = collect($baseline['categories'])->firstWhere('id', $key)['count'] ?? 0;
+            $this->assertSame($old + $increment, $categories->firstWhere('id', $key)['count']);
+        }
+        $this->assertNull($categories->firstWhere('id', 'unavailable')['kk_total']);
+        $this->assertSame(0, $categories->firstWhere('id', 'no_unserved')['kk_total']);
         $this->assertSame($response->json('metrics.total'), $categories->sum('count'));
-        $this->assertStringContainsString('tidak sama', $response->json('verification_note'));
+        $this->assertArrayNotHasKey('condition_filled', $response->json('metrics'));
         $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
     }
 
-    public function test_government_crud_is_reflected_after_reloading_summary_without_mutating_reference_rows(): void
+    public function test_government_crud_changes_family_summary_and_preserves_original_rows(): void
     {
-        $baseline = app(DashboardSummary::class)->data()['metrics'];
+        $baseline = app(DashboardSummary::class)->data();
         $this->actingAs($this->government());
-        $payload = $this->payload(['kondisi_listrik' => 'akses_terbatas', 'latitude' => '-6,9', 'longitude' => '107,6']);
+        $payload = $this->payload(['kondisi_listrik' => 'akses_terbatas', 'jumlah_kk_terdampak' => 7]);
         $id = $this->postJson('/pemerintah/wilayah', $payload)->assertCreated()->json('wilayah.id');
-        $this->getJson('/dashboard/data')->assertJsonPath('metrics.total', $baseline['total'] + 1)
-            ->assertJsonPath('metrics.valid_coordinates', $baseline['valid_coordinates'] + 1)
-            ->assertJsonPath('metrics.condition_filled', $baseline['condition_filled'] + 1);
-        $this->putJson('/pemerintah/wilayah/'.$id, [...$payload, 'kondisi_listrik' => null, 'latitude' => null, 'longitude' => null])->assertOk();
-        $this->getJson('/dashboard/data')->assertJsonPath('metrics.total', $baseline['total'] + 1)
-            ->assertJsonPath('metrics.valid_coordinates', $baseline['valid_coordinates'])->assertJsonPath('metrics.condition_filled', $baseline['condition_filled']);
+        $this->getJson('/dashboard/data')->assertJsonPath('metrics.total', $baseline['metrics']['total'] + 1)
+            ->assertJsonPath('metrics.unserved_kk', ($baseline['metrics']['unserved_kk'] ?? 0) + 7)
+            ->assertJsonPath('metrics.served_kk', null);
+        $this->putJson('/pemerintah/wilayah/'.$id, [...$payload, 'jumlah_kk_terdampak' => 0])->assertOk();
+        $this->getJson('/dashboard/data')->assertJsonPath('metrics.unserved_kk', $baseline['metrics']['unserved_kk']);
+        $this->putJson('/pemerintah/wilayah/'.$id, [...$payload, 'jumlah_kk_terdampak' => null])->assertOk();
+        $this->getJson('/dashboard/data')->assertJsonPath('metrics.unserved_kk', $baseline['metrics']['unserved_kk'])
+            ->assertJsonPath('coverage.kk_unknown', $baseline['coverage']['kk_unknown'] + 1);
         $this->deleteJson('/pemerintah/wilayah/'.$id)->assertOk();
-        $this->getJson('/dashboard/data')->assertJsonPath('metrics', $baseline);
+        $this->getJson('/dashboard/data')->assertJsonPath('metrics', $baseline['metrics'])->assertJsonPath('coverage', $baseline['coverage']);
     }
 
     public function test_summary_requests_do_not_consume_login_attempts(): void

@@ -17,6 +17,8 @@ class DashboardTest extends TestCase
             ->assertSee('Bagaimana TerangDesa bekerja?')->assertSee('Energi Bersih dan Terjangkau')
             ->assertSee(route('wilayah.map'))->assertSee(route('wilayah.index'))->assertSee('#cara-kerja', false)
             ->assertSee('data-summary-url', false)->assertDontSee('ambient__cursor');
+        $this->get('/')->assertSee('KK belum berlistrik')->assertSee('KK sudah berlistrik')
+            ->assertSee('Sebaran KK Belum Berlistrik')->assertDontSee('Wilayah dengan kondisi listrik diisi');
     }
 
     public function test_summary_failure_is_safe_even_when_debug_is_enabled(): void

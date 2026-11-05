@@ -36,6 +36,7 @@
 .home-metrics article:last-child { border-right: 0; }
 .metric-index { display: block; color: #688091; font-size: 9px; letter-spacing: 1.4px; margin-bottom: 10px; }
 .home-metrics strong { display: block; color: #0d3f5b; font-size: 34px; letter-spacing: -.8px; line-height: 1.1; font-weight: 650; min-height: 38px; font-variant-numeric: tabular-nums; }
+.home-metrics strong.metric-unavailable { font-size: 20px; letter-spacing: -.3px; line-height: 1.6; }
 .home-metrics h2 { font-size: 12px; font-weight: 600; margin: 10px 0 6px; line-height: 1.6; }
 .home-metrics p { font-size: 11px; line-height: 1.7; color: #60788a; margin: 0; }
 .dashboard-load-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; color: #60788a; font-size: 10px; min-height: 44px; padding: 8px 1px; }

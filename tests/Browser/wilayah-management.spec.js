@@ -173,8 +173,8 @@ test.describe('PBI-01 dengan MySQL', () => {
         await expect(page.locator('[data-notice]')).toContainText('berhasil ditambahkan');
         await page.goto('/');
         await expect(page.locator('[data-chart-state]')).toHaveAttribute('data-chart-state', 'ready');
-        await expect(page.locator('[data-metric=condition_filled]')).toHaveText(new Intl.NumberFormat('id-ID').format(baseline.condition_filled + 1));
-        await expect(page.locator('[data-metric=valid_coordinates]')).toHaveText(new Intl.NumberFormat('id-ID').format(baseline.valid_coordinates + 1));
+        await expect(page.locator('[data-metric=unserved_kk]')).toHaveText(new Intl.NumberFormat('id-ID').format((baseline.unserved_kk ?? 0) + 23));
+        await expect(page.locator('[data-metric=served_kk]')).toHaveText('Belum tersedia');
         const mapUrl = `/peta-wilayah?q=${encodeURIComponent(name)}`;
         await page.goto(mapUrl);
         await expect(page.locator('[data-map-data-state]')).toHaveAttribute('data-map-data-state', 'ready');
@@ -194,7 +194,7 @@ test.describe('PBI-01 dengan MySQL', () => {
         await expect(page.locator('[data-rows] tr td').nth(1)).toHaveText('0');
         await page.goto('/');
         await expect(page.locator('[data-chart-state]')).toHaveAttribute('data-chart-state', 'ready');
-        await expect(page.locator('[data-metric=condition_filled]')).toHaveText(new Intl.NumberFormat('id-ID').format(baseline.condition_filled));
+        await expect(page.locator('[data-metric=unserved_kk]')).toHaveText(new Intl.NumberFormat('id-ID').format(baseline.unserved_kk));
         await page.goto(mapUrl);
         await expect(page.locator('[data-map-data-state]')).toHaveAttribute('data-map-data-state', 'ready');
         await expect(page.locator('[data-map-rows]')).toContainText('Tidak tercatat KK belum berlistrik');

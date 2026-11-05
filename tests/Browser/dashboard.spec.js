@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test';
 
 const ready = page => expect(page.locator('[data-chart-state]')).toHaveAttribute('data-chart-state', 'ready');
-const format = value => new Intl.NumberFormat('id-ID').format(value);
+const format = value => value === null ? 'Belum tersedia' : new Intl.NumberFormat('id-ID').format(value);
 const cssNumber = (page, property) => page.locator('[data-solar-scene]').evaluate((node, prop) => parseFloat(node.style.getPropertyValue(prop)), property);
 const fixture = () => ({
-    metrics: { total: 17, valid_coordinates: 5, condition_filled: 5 },
+    metrics: { total: 17, unserved_kk: 27, served_kk: null },
+    coverage: { kk_recorded: 15, kk_unknown: 2 },
     categories: [
-        { id: 'unknown', label: 'Belum diketahui', count: 12, color: '#809bad', meaning: 'Kondisi belum diketahui.' },
-        { id: 'off', label: 'Belum berlistrik', count: 3, color: '#0d3f5b', meaning: 'Kondisi dicatat belum berlistrik; belum otomatis diverifikasi.' },
-        { id: 'limited', label: 'Akses listrik terbatas', count: 2, color: '#c18b00', meaning: 'Kondisi dicatat akses terbatas.' },
+        { id: 'has_unserved', label: 'Ada KK belum berlistrik', count: 3, kk_total: 27, color: '#c53d48', meaning: 'Jumlah KK dari database.' },
+        { id: 'no_unserved', label: 'Tercatat 0 KK belum berlistrik', count: 12, kk_total: 0, color: '#2f8b63', meaning: 'Nol tidak menunjukkan jumlah KK sudah berlistrik.' },
+        { id: 'unavailable', label: 'Data KK belum tersedia', count: 2, kk_total: null, color: '#809bad', meaning: 'NULL bukan nol.' },
     ], all_unknown: false, generated_at: new Date().toISOString(),
 });
 
@@ -66,13 +67,14 @@ test.describe('Beranda TerangDesa', () => {
         expect(errors).toEqual([]);
     });
 
-    test('metrik dan tooltip berasal dari backend, satu kategori jujur, legenda, reset dan navigasi', async ({ page }) => {
+    test('jumlah KK dan kelompok wilayah berasal dari TiDB, legenda, reset dan navigasi', async ({ page }) => {
         const expected = await (await page.request.get('/dashboard/data')).json();
         await page.goto('/'); await ready(page);
         for (const [key, value] of Object.entries(expected.metrics)) await expect(page.locator(`[data-metric="${key}"]`)).toHaveText(format(value));
         await expect(page.locator('.condition-segment')).toHaveCount(expected.categories.length);
         await expect(page.locator('[data-condition-table] tr')).toHaveCount(expected.categories.length);
-        if (expected.all_unknown) await expect(page.locator('[data-chart-note]')).toContainText('Seluruh kondisi listrik masih belum diketahui');
+        await expect(page.locator('[data-metric=served_kk]')).toHaveText('Belum tersedia');
+        await expect(page.getByText('Wilayah dengan kondisi listrik diisi', { exact: true })).toHaveCount(0);
         const first = expected.categories[0];
         const segment = page.locator('.condition-segment').first();
         await segment.focus();
@@ -102,7 +104,7 @@ test.describe('Beranda TerangDesa', () => {
         // Fixture respons hanya untuk keadaan UI; tidak disimpan ke database aplikasi.
         await page.route('**/dashboard/data', route => route.fulfill({ json: fixture() }));
         await page.goto('/'); await ready(page);
-        await page.locator('[data-condition-legend] button').filter({ hasText: 'Belum berlistrik' }).click();
+        await page.locator('[data-condition-legend] button').filter({ hasText: 'Ada KK belum berlistrik' }).click();
         await expect(page.locator('[data-chart-total]')).toHaveText('3');
         await expect(page.locator('.condition-segment.is-muted')).toHaveCount(2);
         await expect(page.locator('[data-metric=total]')).toHaveText('17');
@@ -113,7 +115,7 @@ test.describe('Beranda TerangDesa', () => {
         await page.locator('.condition-segment').last().focus();
         await page.keyboard.press('Space');
         await expect(page.locator('[data-chart-total]')).toHaveText('2');
-        await expect(page.locator('[data-condition-tooltip]')).toContainText('Akses listrik terbatas: 2 wilayah');
+        await expect(page.locator('[data-condition-tooltip]')).toContainText('Data KK belum tersedia: 2 wilayah');
     });
 
     test('loading, gagal dan kosong dibedakan; retry tidak menampilkan nol palsu saat gagal', async ({ page }) => {
@@ -122,7 +124,7 @@ test.describe('Beranda TerangDesa', () => {
         await page.route('**/dashboard/data', async route => {
             calls++;
             if (calls === 1) { await gate; return route.fulfill({ status: 503, json: {} }); }
-            return route.fulfill({ json: { metrics: { total: 0, valid_coordinates: 0, condition_filled: 0 }, categories: [], all_unknown: false, generated_at: new Date().toISOString() } });
+            return route.fulfill({ json: { metrics: { total: 0, unserved_kk: null, served_kk: null }, coverage: { kk_recorded: 0, kk_unknown: 0 }, categories: [], all_unknown: false, generated_at: new Date().toISOString() } });
         });
         await page.goto('/');
         await expect(page.locator('[data-chart-state]')).toHaveAttribute('data-chart-state', 'loading');
@@ -135,6 +137,18 @@ test.describe('Beranda TerangDesa', () => {
         await expect(page.locator('[data-metric=total]')).toHaveText('0');
         await expect(page.locator('[data-chart-placeholder]')).toContainText('Belum ada data wilayah tersimpan');
         await expect(page.locator('.condition-segment')).toHaveCount(0);
+    });
+
+    test('seluruh data KK NULL ditampilkan belum tersedia, bukan nol atau sudah berlistrik', async ({ page }) => {
+        const data = { metrics: { total: 4, unserved_kk: null, served_kk: null }, coverage: { kk_recorded: 0, kk_unknown: 4 },
+            categories: [{ id: 'unavailable', label: 'Data KK belum tersedia', count: 4, kk_total: null, color: '#809bad', meaning: 'NULL bukan nol.' }],
+            all_unknown: true, generated_at: new Date().toISOString() };
+        await page.route('**/dashboard/data', route => route.fulfill({ json: data }));
+        await page.goto('/'); await ready(page);
+        await expect(page.locator('[data-metric=unserved_kk]')).toHaveText('Belum tersedia');
+        await expect(page.locator('[data-metric=served_kk]')).toHaveText('Belum tersedia');
+        await expect(page.locator('[data-chart-note]')).toContainText('Data kosong tidak dihitung sebagai nol');
+        await expect(page.locator('[data-condition-table] tr td').nth(2)).toHaveText('Belum tersedia');
     });
 
     test('reduced motion, sentuhan, tooltip tap dan drawer pada 390/320px', async ({ page, browser }) => {
