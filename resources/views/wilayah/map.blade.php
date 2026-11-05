@@ -10,27 +10,33 @@
     </section>
     <section class="map-panel" data-map-panel data-state="loading" aria-label="Peta wilayah Jawa Barat">
         <form class="map-filters" data-map-filters role="search">
-            <div class="field"><label for="map-search">Cari wilayah</label><input id="map-search" name="q" type="search" maxlength="150" placeholder="Nama desa atau alamat…" autocomplete="off"></div>
-            <div class="field"><label for="map-condition">Kondisi listrik</label><select id="map-condition" name="condition"><option value="all">Semua kondisi</option><option value="has_unserved">Ada KK belum berlistrik</option><option value="no_unserved">Tidak tercatat KK belum berlistrik</option></select></div>
+            <div class="field"><label for="map-search">Cari wilayah</label><input id="map-search" name="q" type="search" maxlength="150" placeholder="Cari desa, kecamatan, atau alamat…" autocomplete="off"></div>
+            <div class="field"><label for="map-condition">Catatan KK</label><select id="map-condition" name="condition"><option value="all">Semua catatan</option><option value="has_unserved">Ada KK belum berlistrik</option><option value="no_unserved">Tercatat 0 KK belum berlistrik</option><option value="unavailable">Angka KK belum tersedia</option></select></div>
             <div class="field"><label for="map-kabupaten">Kabupaten/kota</label><select id="map-kabupaten" name="kabupaten"><option value="">Semua kabupaten/kota</option></select></div>
             <button class="button button--primary" type="submit">Terapkan</button>
             <button class="button" type="reset" data-map-filter-reset>Reset</button>
             <details class="map-advanced"><summary>Filter lanjutan</summary><div class="field"><label for="map-location-filter">Ketersediaan lokasi</label><select id="map-location-filter" name="location"><option value="all">Semua wilayah</option><option value="available">Lokasi tersedia</option><option value="missing">Lokasi belum tersedia</option></select></div></details>
         </form>
-        <div class="map-data-status" role="status" aria-live="polite" data-map-data-state="loading"><span data-map-data-status>Memuat data wilayah…</span><button class="button" type="button" data-map-data-retry hidden>Coba lagi data</button></div>
+        <div class="map-quick-filters" role="group" aria-label="Filter cepat jumlah KK">
+            <span>Tampilkan</span><button type="button" data-map-quick="all" aria-pressed="true">Semua wilayah</button><button type="button" data-map-quick="has_unserved" aria-pressed="false"><i class="quick-dot quick-dot--red" aria-hidden="true"></i>Ada KK belum berlistrik</button><button type="button" data-map-quick="no_unserved" aria-pressed="false"><i class="quick-dot quick-dot--green" aria-hidden="true"></i>Tercatat nol KK</button><button type="button" data-map-quick="unavailable" aria-pressed="false">Angka belum tersedia</button>
+        </div>
+        <div class="map-search-results" data-map-search-results hidden aria-label="Hasil pencarian wilayah"></div>
+        <div class="map-data-status" role="status" aria-live="polite" data-map-data-state="loading"><span data-map-data-status>Memuat data wilayah…</span><button class="button" type="button" data-map-search-global hidden>Cari di semua kabupaten</button><button class="button" type="button" data-map-data-retry hidden>Coba lagi data</button></div>
+        <div class="map-insights" aria-label="Ringkasan hasil filter"><div><span>Wilayah ditemukan</span><strong data-map-stat="total">—</strong></div><div><span>KK belum berlistrik</span><strong data-map-stat="affected_kk">—</strong></div><div><span>Wilayah tanpa angka KK</span><strong data-map-stat="unavailable">—</strong></div></div>
         <div class="map-toolbar">
-            <div class="map-location"><span class="map-location__icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg></span><div><h2>Jawa Barat</h2><span>Area kabupaten/kota → desa/kelurahan</span></div></div>
-            <button class="button button--return" type="button" data-map-reset disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg>Kembali ke Jawa Barat</button>
-            <button class="button" type="button" data-map-show-detail hidden>Lihat detail</button>
+            <div class="map-location"><span class="map-location__icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg></span><div><h2 data-map-context>Jawa Barat</h2><span data-map-context-hint>Pilih kabupaten untuk menjelajahi desa</span></div></div>
+            <div class="map-toolbar-actions"><button class="button" type="button" data-map-expand aria-expanded="false" aria-controls="region-map">Perluas peta ⛶</button><button class="button button--return" type="button" data-map-reset disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg>Kembali ke Jawa Barat</button>
+            <button class="button" type="button" data-map-show-detail hidden>Lihat detail</button></div>
         </div>
         <div class="map-workspace">
             <div class="map-stage" data-boundary-state="loading">
                 <div id="region-map" data-region-map data-tile-url="{{ config('map.tile_url') }}" data-attribution="{{ config('map.attribution') }}" data-boundary-url="{{ asset('data/jawa-barat.geojson') }}" data-data-url="{{ route('wilayah.map.data') }}" data-areas-url="{{ asset('data/map-boundaries') }}" role="region" aria-label="Peta interaktif Jawa Barat" aria-describedby="map-help" aria-busy="true"></div>
+                <div class="map-hover-card" data-map-preview aria-hidden="true"><span data-preview-level>JELAJAHI WILAYAH</span><strong data-preview-name>Mulai dari kabupaten</strong><div data-preview-value>Arahkan kursor ke area berwarna</div><small data-preview-hint>Klik untuk membuka desa dan jumlah KK</small></div>
                 <noscript><p class="noscript-message">Aktifkan JavaScript untuk membuka peta interaktif.</p></noscript>
             </div>
             <aside class="map-detail" data-map-detail-panel aria-labelledby="map-detail-title" aria-live="polite">
                 <div class="map-detail__heading"><p class="detail-eyebrow">INFORMASI WILAYAH</p><button class="map-detail__close" type="button" data-map-close-detail aria-label="Tutup detail wilayah" title="Tutup detail">×</button></div><h2 id="map-detail-title" tabindex="-1">Pilih wilayah</h2>
-                <div data-map-detail><p>Klik area atau tombol “Lihat” pada daftar untuk membaca informasi wilayah.</p><div class="detail-hint">Warna mengisi area batas wilayah. Klik kabupaten untuk melihat desa/kelurahan, lalu klik desa untuk membaca jumlah KK belum berlistrik.</div></div>
+                <div data-map-detail><div class="map-detail-guide"><span aria-hidden="true">01 → 02</span><h3>Dari kabupaten ke desa</h3><p>Arahkan kursor untuk ringkasan cepat. Klik kabupaten, lalu pilih desa untuk melihat jumlah KK.</p></div><div class="detail-hint">Abu-abu berarti data belum tersedia atau belum cocok dengan batas desa. Angka nol KK belum berlistrik tidak menunjukkan jumlah KK yang sudah berlistrik.</div></div>
             </aside>
         </div>
         <div class="map-area-heading" data-map-area-status role="status">Memuat area kabupaten/kota…</div><div class="map-legend" data-area-legend aria-label="Legenda peta"><strong>Warna area berdasarkan data TiDB</strong><span>Ada KK belum berlistrik</span><span>Tidak tercatat KK belum berlistrik</span><span>Data belum tersedia</span></div>

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const tile = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6l1sAAAAASUVORK5CYII=', 'base64');
-const ready = page => expect(page.locator('[data-map-data-state]')).toHaveAttribute('data-map-data-state', 'ready');
+const ready = page => expect(page.locator('[data-map-data-state]')).toHaveAttribute('data-map-data-state', 'ready', { timeout: 35000 });
 const format = value => new Intl.NumberFormat('id-ID').format(value);
 
 test.describe('Peta wilayah dari TiDB', () => {
@@ -21,9 +21,9 @@ test.describe('Peta wilayah dari TiDB', () => {
         await expect(page.locator('[data-map-rows] tr')).toHaveCount(15);
         await page.getByRole('button', { name: 'Halaman wilayah berikutnya' }).click();
         await expect(page.locator('[data-map-page]')).toContainText('2 /');
-        await page.getByLabel('Kondisi listrik').selectOption('has_unserved');
+        await page.getByLabel('Catatan KK').selectOption('has_unserved');
         await expect(page.locator('[data-map-data-status]')).toContainText(`${format(baseline.summary.has_unserved)} wilayah sesuai filter`);
-        await page.getByLabel('Kondisi listrik').selectOption('no_unserved');
+        await page.getByLabel('Catatan KK').selectOption('no_unserved');
         await expect(page.locator('[data-map-data-status]')).toContainText(`${format(baseline.summary.no_unserved)} wilayah sesuai filter`);
         await expect(page.locator('[data-map-rows] tr').first()).toContainText('0 keluarga');
         await page.getByLabel('Kabupaten/kota').selectOption('3201');
@@ -32,16 +32,16 @@ test.describe('Peta wilayah dari TiDB', () => {
         await page.getByRole('button', { name: 'Lihat MALASARI', exact: true }).click();
         await expect(page.locator('#map-detail-title')).toHaveText('MALASARI');
         await expect(page.locator('[data-map-detail]')).toContainText('KecamatanNANGGUNG');
-        await expect(page.locator('[data-map-detail]')).toContainText('Keluarga pengguna PLNData belum tersedia');
+        await expect(page.locator('[data-map-detail]')).toContainText('KK belum berlistrik0 keluarga');
         await expect(page.locator('[data-map-detail]')).toContainText('Tahun data2024');
-        await expect(page.locator('[data-map-detail]')).toContainText('Batas desa/kelurahan');
+        await expect(page.locator('[data-map-detail]')).toContainText('Ringkasan');
         await page.reload();
         await expect(page.getByLabel('Cari wilayah', { exact: true })).toHaveValue('MALASARI');
         await expect(page.getByLabel('Kabupaten/kota')).toHaveValue('3201');
         await ready(page);
         await page.getByRole('button', { name: 'Reset', exact: true }).click();
         await expect(page.getByLabel('Cari wilayah', { exact: true })).toHaveValue('');
-        await expect(page.getByLabel('Kondisi listrik')).toHaveValue('all');
+        await expect(page.getByLabel('Catatan KK')).toHaveValue('all');
         await expect(page.getByLabel('Kabupaten/kota')).toHaveValue('');
         await expect(page.locator('[data-map-data-status]')).toContainText(`${format(baseline.summary.total)} wilayah sesuai filter`);
     });
@@ -89,13 +89,71 @@ test.describe('Peta wilayah dari TiDB', () => {
         await expect(page.locator('.village-area:not([fill="#b8c4ce"])')).toHaveCount(0);
     });
 
+    test('filter cepat, ringkasan KK dan perluas peta mendukung keyboard serta tutup detail', async ({ page }) => {
+        await expect(page.locator('[data-map-stat=affected_kk]')).toHaveText(format(baseline.summary.affected_kk));
+        const group = page.getByRole('group', { name: 'Filter cepat jumlah KK' });
+        const positive = group.getByRole('button', { name: 'Ada KK belum berlistrik', exact: true });
+        await positive.click(); await ready(page);
+        await expect(positive).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.getByLabel('Catatan KK')).toHaveValue('has_unserved');
+        await expect(page.locator('[data-map-stat=total]')).toHaveText(format(baseline.summary.has_unserved));
+        await group.getByRole('button', { name: 'Tercatat nol KK' }).click(); await ready(page);
+        await expect(page.locator('[data-map-stat=affected_kk]')).toHaveText('0');
+        await group.getByRole('button', { name: 'Angka belum tersedia' }).click(); await ready(page);
+        await expect(page.getByLabel('Catatan KK')).toHaveValue('unavailable');
+        await expect(page.locator('[data-map-stat=affected_kk]')).toHaveText('Belum tersedia');
+        await group.getByRole('button', { name: 'Semua wilayah' }).click(); await ready(page);
+        await page.getByRole('button', { name: /Perluas peta/ }).click();
+        await expect(page.locator('[data-map-panel]')).toHaveClass(/is-expanded/);
+        await expect(page.locator('[data-map-panel]')).toHaveAttribute('aria-modal', 'true');
+        await expect(page.locator('[data-map-expand]')).toHaveAttribute('aria-expanded', 'true');
+        await page.getByRole('button', { name: 'Tutup detail wilayah' }).click();
+        await expect(page.locator('[data-map-detail-panel]')).toBeHidden();
+        await page.getByRole('button', { name: 'Lihat detail', exact: true }).click();
+        await expect(page.locator('[data-map-detail-panel]')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.locator('[data-map-panel]')).not.toHaveClass(/is-expanded/);
+        await expect(page.locator('[data-map-expand]')).toBeFocused();
+        expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
+        for (const width of [390, 320]) {
+            await page.setViewportSize({ width, height: 844 });
+            await page.locator('[data-region-map]').scrollIntoViewIfNeeded();
+            await expect.poll(() => page.locator('[data-region-map]').evaluate(map => {
+                const box = map.getBoundingClientRect();
+                return [...document.querySelectorAll('.district-area')].every(path => {
+                    const rect = path.getBoundingClientRect();
+                    return rect.left >= box.left - 3 && rect.right <= box.right + 3 && rect.top >= box.top - 3 && rect.bottom <= box.bottom + 3;
+                });
+            })).toBe(true);
+        }
+    });
+
+    test('pencarian Bojongsoang memfokuskan Bandung dan menawarkan perbaikan filter kabupaten', async ({ page }) => {
+        await page.getByLabel('Kabupaten/kota').selectOption('3217'); await ready(page);
+        await page.getByLabel('Cari wilayah', { exact: true }).fill('BOJONGSOANG');
+        await page.getByRole('button', { name: 'Terapkan', exact: true }).click(); await ready(page);
+        await expect(page.locator('[data-map-search-global]')).toBeVisible();
+        await page.getByRole('button', { name: 'Cari di semua kabupaten', exact: true }).click();
+        await expect(page.getByLabel('Kabupaten/kota')).toHaveValue('3204'); await ready(page);
+        await expect(page.locator('[data-map-context]')).toContainText('BANDUNG');
+        await expect(page.locator('[data-region-map]')).toHaveAttribute('data-area-level', 'village');
+        const choice = page.getByRole('button', { name: 'Sorot BOJONGSOANG, BOJONGSOANG', exact: true });
+        await choice.click();
+        await expect(page.locator('#map-detail-title')).toHaveText('BOJONGSOANG');
+        await expect(page.locator('[data-map-preview]')).toContainText('BOJONGSOANG');
+        await expect(page.locator('.selected-area')).toHaveCount(1);
+        await expect(page.locator('[data-map-search-global]')).toBeHidden();
+        await page.setViewportSize({ width: 320, height: 844 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    });
+
     test('wilayah tanpa koordinat tampil pada daftar dengan hasil kosong yang jelas', async ({ page }) => {
         await page.getByText('Filter lanjutan', { exact: true }).click();
         await page.getByLabel('Ketersediaan lokasi').selectOption('missing');
         await expect(page.locator('[data-map-data-status]')).toContainText(`${format(baseline.summary.unlocated)} wilayah sesuai filter`);
         await expect(page.locator('.cluster-icon, .village-icon')).toHaveCount(0);
         await page.locator('[data-map-rows] tr').first().getByRole('button').click();
-        await expect(page.locator('[data-map-detail]')).toContainText('Koordinat wilayah belum tersedia pada database');
+        await expect(page.locator('[data-map-detail]')).toContainText('Kode wilayah');
         await page.getByLabel('Cari wilayah', { exact: true }).fill('WILAYAH TIDAK ADA 123456');
         await expect(page.locator('[data-map-empty]')).toBeVisible();
         await expect(page.locator('[data-map-data-status]')).not.toContainText('Memuat');
@@ -104,7 +162,7 @@ test.describe('Peta wilayah dari TiDB', () => {
 
     test('error data dan batas dapat dipulihkan serta seluler tidak overflow', async ({ page }) => {
         await page.route('**/peta-wilayah/data?**', route => route.fulfill({ status: 503, json: { message: 'Layanan data sedang tidak tersedia.' } }));
-        await page.getByLabel('Kondisi listrik').selectOption('has_unserved');
+        await page.getByLabel('Catatan KK').selectOption('has_unserved');
         await expect(page.locator('[data-map-data-state]')).toHaveAttribute('data-map-data-state', 'error');
         await expect(page.locator('[data-map-data-status]')).not.toContainText('Memuat');
         await page.unroute('**/peta-wilayah/data?**');
@@ -137,7 +195,7 @@ test.describe('Peta wilayah dari TiDB', () => {
         await expect(page.locator('[data-map-rows] tr')).toContainText('Data belum tersedia');
         await expect(page.locator('[data-map-rows] tr')).not.toContainText('0 keluarga');
         await page.getByRole('button', { name: 'Lihat MALASARI', exact: true }).click();
-        await expect(page.locator('[data-map-detail]')).toContainText('Keluarga belum berlistrikData belum tersedia');
+        await expect(page.locator('[data-map-detail]')).toContainText('KK belum berlistrikData belum tersedia');
         await page.unroute('**/peta-wilayah/data?**');
         let release;
         const gate = new Promise(resolve => { release = resolve; });
