@@ -1,7 +1,7 @@
 const root = document.querySelector('[data-dashboard]');
 const events = new AbortController();
 const signal = events.signal;
-const number = value => new Intl.NumberFormat('id-ID').format(value);
+const number = value => value === null ? 'Belum tersedia' : new Intl.NumberFormat('id-ID').format(value);
 let fetchAbort;
 let summary;
 let selected = null;
@@ -118,7 +118,7 @@ const reset = document.querySelector('[data-chart-reset]');
 const help = 'Arahkan kursor atau fokus ke grafik untuk membaca arti kategori. Pilih legenda untuk menyorot.';
 
 function describe(category) {
-    tooltip.textContent = `${category.label}: ${number(category.count)} wilayah. ${category.meaning}`;
+    tooltip.textContent = `${category.label}: ${number(category.count)} wilayah · KK belum berlistrik: ${number(category.kk_total)}. ${category.meaning}`;
     tooltip.dataset.active = 'true';
 }
 function resetDescription() {
@@ -157,7 +157,10 @@ function interactiveCategory(element, category, svg = false) {
 }
 function renderSummary(data) {
     summary = data; selected = null; reset.disabled = true;
-    for (const [name, value] of Object.entries(data.metrics)) document.querySelector(`[data-metric="${name}"]`).textContent = number(value);
+    for (const [name, value] of Object.entries(data.metrics)) {
+        const element = document.querySelector(`[data-metric="${name}"]`);
+        if (element) { element.textContent = number(value); element.classList.toggle('metric-unavailable', value === null); }
+    }
     const segments = document.querySelector('[data-chart-segments]');
     const table = document.querySelector('[data-condition-table]');
     segments.replaceChildren(); table.replaceChildren(); legend.replaceChildren();
@@ -181,9 +184,9 @@ function renderSummary(data) {
         const dot = node('i', ''); dot.setAttribute('aria-hidden', 'true');
         button.append(dot, node('span', category.label), node('strong', number(category.count)));
         interactiveCategory(button, category); legend.append(button);
-        const row = document.createElement('tr'); row.append(node('td', category.label), node('td', number(category.count)), node('td', category.meaning)); table.append(row);
+        const row = document.createElement('tr'); row.append(node('td', category.label), node('td', number(category.count)), node('td', number(category.kk_total)), node('td', category.meaning)); table.append(row);
     });
-    document.querySelector('[data-chart-note]').textContent = data.all_unknown ? 'Seluruh kondisi listrik masih belum diketahui. Grafik menampilkan satu kategori sesuai data yang tersimpan.' : 'Pilih kategori untuk menyorot. Sorotan tidak mengubah ringkasan seluruh wilayah dan bukan status verifikasi.';
+    document.querySelector('[data-chart-note]').textContent = data.all_unknown ? 'Jumlah KK belum diisi pada seluruh wilayah. Data kosong tidak dihitung sebagai nol.' : `${number(data.coverage.kk_recorded)} wilayah memiliki angka KK · ${number(data.coverage.kk_unknown)} wilayah belum memiliki angka. Pilih kelompok untuk menyorot; kartu ringkasan tetap menampilkan total keseluruhan.`;
 }
 reset.addEventListener('click', () => { selected = null; selectCategory(null); }, { signal });
 
@@ -201,8 +204,11 @@ async function loadSummary() {
         if (!response.ok) throw new Error('Ringkasan belum dapat dimuat. Periksa koneksi database lalu coba kembali.');
         const data = await response.json();
         if (abort.signal.aborted) return;
-        if (!data.metrics || !Array.isArray(data.categories) || !Object.values(data.metrics).every(value => Number.isInteger(value) && value >= 0)
-            || !data.categories.every(category => Number.isInteger(category.count) && category.count > 0)
+        if (!data.metrics || !Array.isArray(data.categories) || !['total', 'unserved_kk', 'served_kk'].every(key => data.metrics[key] === null || (Number.isInteger(data.metrics[key]) && data.metrics[key] >= 0))
+            || !Number.isInteger(data.metrics.total) || !data.coverage
+            || !['kk_recorded', 'kk_unknown'].every(key => Number.isInteger(data.coverage[key]) && data.coverage[key] >= 0)
+            || data.coverage.kk_recorded + data.coverage.kk_unknown !== data.metrics.total
+            || !data.categories.every(category => Number.isInteger(category.count) && category.count > 0 && (category.kk_total === null || (Number.isInteger(category.kk_total) && category.kk_total >= 0)))
             || data.categories.reduce((sum, category) => sum + category.count, 0) !== data.metrics.total) throw new Error('Respons ringkasan belum lengkap. Silakan coba kembali.');
         renderSummary(data);
         const time = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }).format(new Date(data.generated_at));
