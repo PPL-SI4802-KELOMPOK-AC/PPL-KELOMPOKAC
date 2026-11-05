@@ -1,5 +1,11 @@
 import './bootstrap';
 
+if (document.querySelector('[data-location-form]')) {
+    import('./location-form').catch(() => {
+        document.querySelector('[data-location-map-status]').textContent = 'Peta belum dapat dimuat. Muat ulang halaman atau isi koordinat secara manual.';
+    });
+}
+
 if (document.querySelector('[data-dashboard]')) {
     import('./dashboard').catch(() => {
         const status = document.querySelector('[data-dashboard-status]');
