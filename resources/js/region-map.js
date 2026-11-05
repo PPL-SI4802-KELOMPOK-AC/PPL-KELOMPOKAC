@@ -222,10 +222,9 @@ async function renderAreas(data, signal) {
             shape.bindTooltip(areaTooltip(name, lines), { sticky: true, className: 'area-tooltip-shell' });
             shape.on('mouseover', () => { shape.setStyle({ weight: 2.5, color: '#234a5f', fillOpacity: .94 }); shape.bringToFront(); });
             shape.on('mouseout', () => {
-                if (record && record.id === selectedId) {
-                    shape.setStyle({ color: '#123b52', weight: 2, fillColor: '#ffd54a', fillOpacity: .92 });
-                    shape.bringToFront();
-                } else layer.resetStyle(shape);
+                // Hover only affects the feature temporarily. Persistent selection is
+                // drawn in `selection`, so never leave a selected feature's base style mutated.
+                layer.resetStyle(shape);
                 selection.eachLayer(group => group.eachLayer(selectedLayer => selectedLayer.bringToFront?.()));
             });
             shape.on('click', () => {
