@@ -110,6 +110,8 @@ class MapData
                 'has_unserved' => count(array_filter($records, fn ($r) => $r['category'] === 'has_unserved')),
                 'no_unserved' => count(array_filter($records, fn ($r) => $r['category'] === 'no_unserved')),
                 'unavailable' => count(array_filter($records, fn ($r) => $r['category'] === 'unavailable')),
+                'affected_kk' => count(array_filter($records, fn ($r) => $r['electricity']['unserved_families'] !== null))
+                    ? array_sum(array_column(array_column($records, 'electricity'), 'unserved_families')) : null,
             ],
             'data' => ['source' => 'Database aplikasi', 'periods' => array_values($periods),
                 'outside_or_unknown_province' => $excluded, 'unavailable_fields' => ['pln_families']],

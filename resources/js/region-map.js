@@ -15,6 +15,12 @@ const dataStatus = document.querySelector('[data-map-data-status]');
 const dataState = document.querySelector('[data-map-data-state]');
 const dataRetry = document.querySelector('[data-map-data-retry]');
 const rows = document.querySelector('[data-map-rows]');
+const preview = document.querySelector('[data-map-preview]');
+const searchResults = document.querySelector('[data-map-search-results]');
+const searchGlobal = document.querySelector('[data-map-search-global]');
+const expand = document.querySelector('[data-map-expand]');
+const districtLayers = new Map();
+let pinnedPreview = null, previousOverflow = '', expandReturnFocus = null;
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const events = new AbortController();
 const number = value => value === null || value === undefined ? 'Belum tersedia' : new Intl.NumberFormat('id-ID').format(value);
@@ -30,6 +36,7 @@ let provinceLayer, maskLayer, boundaryReady = false;
 let dataAbort, debounce, page = 1, lastPage = 1, selectedId = null, searchRecords = [];
 let districtOptionsLoaded = false;
 const initial = new URLSearchParams(location.search);
+let focusSearch = Boolean(initial.get('q'));
 filters.elements.q.value = (initial.get('q') ?? '').slice(0, 150);
 for (const name of ['condition', 'location']) {
     const value = initial.get(name) ?? 'all';
@@ -47,7 +54,7 @@ L.control.zoom({ position: 'topright', zoomInTitle: 'Perbesar peta', zoomOutTitl
 L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map);
 const areas = L.layerGroup().addTo(map);
 const geometryCache = new Map();
-let areaLayers = new Map(), renderedDistrict = null, activeVillages = {};
+let areaLayers = new Map(), renderedDistrict = null, activeVillages = {}, scopeBounds = null;
 const areaColors = { has_unserved: '#c53d48', no_unserved: '#2f8b63', unavailable: '#b8c4ce' };
 const areaStatus = document.querySelector('[data-map-area-status]');
 const legend = document.querySelector('[data-area-legend]');
@@ -132,9 +139,53 @@ function detailBlock(title, values, notes = []) {
     notes.forEach(([text, className]) => block.append(textNode('p', text, className)));
     return block;
 }
+function setPreview(name, value, hint, level = 'RINGKASAN WILAYAH', category = '') {
+    preview.querySelector('[data-preview-name]').textContent = name;
+    preview.querySelector('[data-preview-value]').textContent = value;
+    preview.querySelector('[data-preview-hint]').textContent = hint;
+    preview.querySelector('[data-preview-level]').textContent = level;
+    preview.dataset.category = category;
+}
+function resetPreview() {
+    if (pinnedPreview) setPreview(...pinnedPreview);
+    else setPreview('Mulai dari kabupaten', 'Arahkan kursor ke area berwarna', 'Klik untuk membuka desa dan jumlah KK', 'JELAJAHI WILAYAH');
+}
+function syncQuickFilters() {
+    document.querySelectorAll('[data-map-quick]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mapQuick === filters.elements.condition.value)));
+}
+function setContext() {
+    const district = filters.elements.kabupaten.value;
+    document.querySelector('[data-map-context]').textContent = district ? filters.elements.kabupaten.selectedOptions[0]?.textContent : 'Jawa Barat';
+    document.querySelector('[data-map-context-hint]').textContent = district ? 'Jawa Barat / Desa dan kelurahan' : 'Pilih kabupaten untuk menjelajahi desa';
+}
+function renderSearchResults(result) {
+    searchResults.replaceChildren();
+    searchResults.hidden = !filters.elements.q.value.trim() || result.list.total === 0;
+    if (searchResults.hidden) return;
+    searchResults.append(textNode('p', 'Pilih hasil untuk menyorot area desa', 'map-search-caption'));
+    const choices = document.createElement('div'); choices.className = 'map-search-choices';
+    for (const record of result.list.data.slice(0, 5)) {
+        const button = textNode('button', '', 'map-search-choice'); button.type = 'button';
+        button.setAttribute('aria-label', 'Sorot ' + record.name + ', ' + (record.administration.subdistrict_name ?? record.address));
+        button.append(textNode('strong', record.name), textNode('small', [record.administration.subdistrict_name, record.administration.district_name].filter(Boolean).join(' · ') || record.address), textNode('span', number(record.electricity.unserved_families) + ' KK belum berlistrik'));
+        button.addEventListener('click', () => selectRegion(record, true), { signal: events.signal }); choices.append(button);
+    }
+    searchResults.append(choices);
+}
+function focusSearchResult(result) {
+    if (!focusSearch || !filters.elements.q.value.trim()) return;
+    const bounds = L.latLngBounds([]);
+    const shapes = result.areas.level === 'village' ? areaLayers.values()
+        : Object.keys(result.areas.districts).map(code => districtLayers.get(code)).filter(Boolean);
+    for (const shape of shapes) bounds.extend(shape.getBounds());
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [35, 35], maxZoom: 13, animate: !reducedMotion.matches });
+    focusSearch = false;
+}
 function selectRegion(record, pan = false) {
     closeAreaTooltips();
     selectedId = record.id;
+    pinnedPreview = [record.name, number(record.electricity.unserved_families) + ' KK belum berlistrik', record.administration.subdistrict_name ?? record.address, 'DESA TERPILIH', record.category];
+    resetPreview();
     const shape = areaLayers.get(record.code);
     document.querySelector('#map-detail-title').textContent = record.name;
     const detail = document.querySelector('[data-map-detail]');
@@ -169,14 +220,14 @@ function selectRegion(record, pan = false) {
         loadData().then(() => { if (selectedId === id) selectRegion(record, true); });
     }
     rows.querySelectorAll('tr').forEach(row => row.classList.toggle('is-selected', Number(row.dataset.id) === selectedId));
-    if (pan) { document.querySelector('#map-detail-title').focus({ preventScroll: true }); document.querySelector('.map-workspace').scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' }); }
+    if (pan) { requestAnimationFrame(() => map.invalidateSize({ animate: false, pan: true })); document.querySelector('#map-detail-title').focus({ preventScroll: true }); document.querySelector('.map-workspace').scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' }); }
 }
 function shareColor(share) {
     return share === null ? '#b8c4ce' : share === 0 ? '#2f8b63'
         : share <= 10 ? '#8fbd71' : share <= 25 ? '#f0c75b' : share <= 50 ? '#e88a4c' : '#c53d48';
 }
 function clearAreas() {
-    areas.clearLayers(); areaLayers.clear();
+    areas.clearLayers(); areaLayers.clear(); districtLayers.clear(); activeVillages = {}; scopeBounds = null;
     element.dataset.areaCount = '0';
 }
 async function geometry(district, signal) {
@@ -221,11 +272,15 @@ async function renderAreas(data, signal) {
                 : [summary ? summary.has_unserved + ' dari ' + summary.known + ' desa memiliki KK belum berlistrik' : 'Data aplikasi belum tersedia',
                     summary?.unavailable ? summary.unavailable + ' desa tanpa angka' : 'Klik untuk melihat desa/kelurahan'];
             shape.bindTooltip(areaTooltip(name, lines), { sticky: true, className: 'area-tooltip-shell' });
-            shape.on('mouseover', () => { shape.setStyle({ weight: 2.5, color: '#234a5f', fillOpacity: .94 }); shape.bringToFront(); });
+            const previewArea = () => setPreview(name,
+                number(isVillage ? record?.electricity.unserved_families : summary?.families) + ' KK belum berlistrik',
+                isVillage ? feature.properties.subdistrict + ' · ' + feature.properties.district : 'Klik untuk membuka desa/kelurahan',
+                isVillage ? 'DESA / KELURAHAN' : 'KABUPATEN / KOTA', isVillage ? record?.category ?? 'unavailable' : '');
+            shape.on('mouseover', () => { previewArea(); shape.setStyle({ weight: 2.5, color: '#234a5f', fillOpacity: .94 }); shape.bringToFront(); });
             shape.on('mouseout', () => {
                 // Hover only affects the feature temporarily. Persistent selection is
                 // drawn in `selection`, so never leave a selected feature's base style mutated.
-                layer.resetStyle(shape);
+                layer.resetStyle(shape); resetPreview();
                 selection.eachLayer(group => group.eachLayer(selectedLayer => selectedLayer.bringToFront?.()));
             });
             shape.on('click', () => {
@@ -234,6 +289,10 @@ async function renderAreas(data, signal) {
                     if (record) selectRegion(record, true);
                     else {
                         selectedId = null; selection.clearLayers();
+                        pinnedPreview = [name, 'Data KK belum tersedia', feature.properties.subdistrict + ' · ' + feature.properties.district, 'DESA TERPILIH', 'unavailable'];
+                        resetPreview();
+                        detailPanel.hidden = false; showDetail.hidden = true;
+                        document.querySelector('.map-workspace').classList.remove('detail-closed');
                         document.querySelector('#map-detail-title').textContent = name;
                         document.querySelector('[data-map-detail]').replaceChildren(textNode('p', feature.properties.subdistrict + ', ' + feature.properties.district), textNode('p', 'Batas desa tersedia, tetapi belum ada data aplikasi yang cocok. Warna abu-abu tidak berarti nol KK.'));
                     }
@@ -253,12 +312,16 @@ async function renderAreas(data, signal) {
                     path.setAttribute('tabindex', '0'); path.setAttribute('role', 'button');
                     path.setAttribute('aria-label', name + (isVillage ? ' — ' + (record ? categories[record.category].label : 'Data belum tersedia') : ' — Lihat desa'));
                     path.dataset.areaCode = code;
+                    L.DomEvent.on(path, 'focus', previewArea);
+                    L.DomEvent.on(path, 'blur', resetPreview);
                     L.DomEvent.on(path, 'keydown', event => { if (event.key === 'Enter' || event.key === ' ') { L.DomEvent.preventDefault(event); shape.fire('click'); } });
                 }
             });
             if (isVillage && record) areaLayers.set(code, shape);
+            if (!isVillage) districtLayers.set(code, shape);
         },
     }).addTo(areas);
+    scopeBounds = layer.getBounds();
     element.dataset.areaLevel = data.level;
     element.dataset.areaCount = String(collection.features.length);
     const matched = isVillage ? Object.keys(data.villages).length : Object.keys(data.districts).length;
@@ -275,6 +338,7 @@ async function renderAreas(data, signal) {
         document.querySelector('#map-detail-title').textContent = data.districts[data.district]?.name ?? filters.elements.kabupaten.selectedOptions[0]?.textContent ?? 'Desa/kelurahan';
         document.querySelector('[data-map-detail]').replaceChildren(textNode('p', 'Klik atau arahkan kursor ke area desa untuk membaca kondisi listriknya. Area abu-abu belum mempunyai data yang cocok dengan hasil filter.'));
     } else if (!isVillage) renderedDistrict = null;
+    setContext();
     if (selectedId) { const record = Object.values(data.villages).find(r => r.id === selectedId); if (record) selectRegion(record); }
 }
 function renderList(list) {
@@ -334,7 +398,9 @@ async function loadData() {
     let timedOut = false;
     const timeout = setTimeout(() => { timedOut = true; abort.abort(); }, 30000);
     dataState.dataset.mapDataState = 'loading'; dataStatus.textContent = 'Memuat data wilayah…'; dataRetry.hidden = true;
-    rows.setAttribute('aria-busy', 'true');
+    rows.setAttribute('aria-busy', 'true'); searchGlobal.hidden = true;
+    syncQuickFilters();
+    document.querySelectorAll('[data-map-stat]').forEach(element => element.textContent = '—');
     document.querySelector('[data-map-prev]').disabled = true; document.querySelector('[data-map-next]').disabled = true;
     const bounds = map.getBounds();
     const params = new URLSearchParams({ q: filters.elements.q.value.trim(), condition: filters.elements.condition.value, kabupaten: filters.elements.kabupaten.value, location: filters.elements.location.value, page, zoom: map.getZoom(), bbox: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].map(value => value.toFixed(7)).join(',') });
@@ -356,9 +422,16 @@ async function loadData() {
                 if ([...filters.elements.kabupaten.options].some(option => option.value === value)) { filters.elements.kabupaten.value = value; return loadData(); }
             }
         }
+        const matchingDistricts = Object.keys(result.areas?.districts ?? {});
+        if (focusSearch && filters.elements.q.value.trim() && !filters.elements.kabupaten.value && matchingDistricts.length === 1) {
+            filters.elements.kabupaten.value = matchingDistricts[0]; initial.delete('kabupaten');
+            if (filters.elements.kabupaten.value) return loadData();
+        }
         await renderAreas(result.areas, abort.signal);
         if (abort.signal.aborted) return;
-        renderList(result.list);
+        renderList(result.list); renderSearchResults(result); focusSearchResult(result);
+        searchGlobal.hidden = !(result.summary.total === 0 && filters.elements.q.value.trim() && filters.elements.kabupaten.value);
+        document.querySelectorAll('[data-map-stat]').forEach(element => element.textContent = number(result.summary[element.dataset.mapStat]));
         document.querySelector('[data-map-period]').textContent = result.data.periods.length ? `Periode ${result.data.periods.join(', ')}` : 'Periode belum tersedia';
         const s = result.summary;
         dataStatus.textContent = s.total ? `${number(s.total)} wilayah sesuai filter · ${number(s.located)} lokasi tersedia · ${number(s.unlocated)} lokasi belum tersedia` : 'Tidak ada wilayah yang sesuai pencarian atau filter. Peta dasar tetap tampil.';
@@ -368,7 +441,7 @@ async function loadData() {
         history.replaceState(null, '', `${location.pathname}?${url}`);
     } catch (error) {
         if (dataAbort !== abort || disposed || (error.name === 'AbortError' && !timedOut)) return;
-        clearAreas(); rows.replaceChildren();
+        clearAreas(); rows.replaceChildren(); searchResults.hidden = true;
         document.querySelector('[data-map-empty]').hidden = true;
         document.querySelector('[data-map-list-count]').textContent = 'Jumlah hasil belum tersedia';
         document.querySelector('[data-map-page]').textContent = '—';
@@ -384,7 +457,8 @@ function filterChanged() {
     searchSuggestions.hidden = true;
     filters.elements.q.setAttribute('aria-expanded', 'false');
     clearTimeout(debounce); dataAbort?.abort(); page = 1;
-    selectedId = null; selection.clearLayers(); map.closePopup();
+    selectedId = null; pinnedPreview = null; resetPreview(); selection.clearLayers(); map.closePopup();
+    focusSearch = Boolean(filters.elements.q.value.trim()); searchResults.hidden = true; searchGlobal.hidden = true; syncQuickFilters();
     clearAreas(); rows.replaceChildren();
     dataState.dataset.mapDataState = 'loading'; dataStatus.textContent = 'Memuat data wilayah…';
     dataRetry.hidden = true;
@@ -397,15 +471,42 @@ function filterChanged() {
 }
 closeDetail.addEventListener('click', () => {
     detailPanel.hidden = true; showDetail.hidden = false; document.querySelector('.map-workspace').classList.add('detail-closed');
-    selectedId = null; selection.clearLayers(); rows.querySelectorAll('tr').forEach(row => row.classList.remove('is-selected'));
+    selectedId = null; pinnedPreview = null; resetPreview(); selection.clearLayers(); rows.querySelectorAll('tr').forEach(row => row.classList.remove('is-selected'));
     map.closePopup();
     document.querySelector('#map-detail-title').textContent = 'Pilih wilayah';
     document.querySelector('[data-map-detail]').replaceChildren(textNode('p', 'Pilih area pada peta atau tombol “Lihat” pada daftar untuk membuka detail wilayah.'));
-    map.invalidateSize({ animate: false, pan: false });
+    map.invalidateSize({ animate: false, pan: true });
+    showDetail.focus({ preventScroll: true });
 }, { signal: events.signal });
 showDetail.addEventListener('click', () => {
     detailPanel.hidden = false; showDetail.hidden = true; document.querySelector('.map-workspace').classList.remove('detail-closed');
-    map.invalidateSize({ animate: false, pan: false });
+    map.invalidateSize({ animate: false, pan: true });
+}, { signal: events.signal });
+for (const button of document.querySelectorAll('[data-map-quick]')) button.addEventListener('click', () => {
+    filters.elements.condition.value = button.dataset.mapQuick; filterChanged(); clearTimeout(debounce); loadData();
+}, { signal: events.signal });
+searchGlobal.addEventListener('click', () => {
+    filters.elements.kabupaten.value = ''; initial.delete('kabupaten');
+    filterChanged(); clearTimeout(debounce); loadData();
+}, { signal: events.signal });
+function setExpanded(value) {
+    const wasExpanded = panel.classList.contains('is-expanded');
+    if (value === wasExpanded) return;
+    if (value) { previousOverflow = document.body.style.overflow; expandReturnFocus = document.activeElement; document.body.style.overflow = 'hidden'; }
+    else document.body.style.overflow = previousOverflow;
+    panel.setAttribute('role', value ? 'dialog' : 'region');
+    if (value) panel.setAttribute('aria-modal', 'true'); else panel.removeAttribute('aria-modal');
+    panel.classList.toggle('is-expanded', value); expand.setAttribute('aria-expanded', String(value));
+    expand.textContent = value ? 'Kecilkan peta ⛶' : 'Perluas peta ⛶';
+    requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false, pan: true });
+        if (!value) { panel.scrollIntoView({ block: 'start', behavior: 'instant' }); expandReturnFocus?.focus({ preventScroll: true }); }
+    });
+}
+document.addEventListener('focusin', event => { if (panel.classList.contains('is-expanded') && !panel.contains(event.target)) expand.focus(); }, { signal: events.signal });
+expand.addEventListener('click', () => setExpanded(!panel.classList.contains('is-expanded')), { signal: events.signal });
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && panel.classList.contains('is-expanded')) { event.preventDefault(); setExpanded(false); }
 }, { signal: events.signal });
 filters.addEventListener('submit', event => { event.preventDefault(); filterChanged(); clearTimeout(debounce); loadData(); });
 filters.addEventListener('reset', event => {
@@ -438,18 +539,37 @@ dataRetry.addEventListener('click', loadData);
 document.querySelector('[data-boundary-retry]').addEventListener('click', async () => { await loadBoundary(); loadData(); });
 reset.addEventListener('click', () => {
     detailPanel.hidden = false; showDetail.hidden = true; document.querySelector('.map-workspace').classList.remove('detail-closed');
-    filters.elements.kabupaten.value = ''; initial.delete('kabupaten');
+    filters.elements.q.value = ''; filters.elements.kabupaten.value = ''; initial.delete('kabupaten');
     filterChanged(); clearTimeout(debounce); home(true); loadData();
 }, { signal: events.signal });
 retry.addEventListener('click', loadTiles, { signal: events.signal });
 // Geometry covers the selected administrative area; panning does not refetch TiDB.
 function motionChanged() { map.stop(); map.options.zoomAnimation = !reducedMotion.matches; map.options.fadeAnimation = !reducedMotion.matches; }
 reducedMotion.addEventListener('change', motionChanged);
-const resize = new ResizeObserver(() => { closeAreaTooltips(); map.invalidateSize({ animate: false, pan: false }); if (boundaryReady) map.setMinZoom(Math.max(5, map.getBoundsZoom(homeBounds, false, L.point(48, 48)))); });
+function fitResponsiveScope() {
+    closeAreaTooltips(); map.invalidateSize({ animate: false, pan: true });
+    if (!boundaryReady) return;
+    // Leaflet clamps getBoundsZoom to the existing minimum; release the desktop
+    // minimum before calculating a smaller fit for a narrow screen.
+    map.setMinZoom(5);
+    map.setMinZoom(Math.max(5, map.getBoundsZoom(homeBounds, false, L.point(48, 48))));
+    let bounds = scopeBounds?.isValid() ? scopeBounds : homeBounds;
+    const selected = Object.values(activeVillages).find(record => record.id === selectedId);
+    if (selected || filters.elements.q.value.trim()) {
+        const matches = L.latLngBounds([]);
+        for (const [code, shape] of areaLayers) {
+            if (!selected || activeVillages[code]?.administration.subdistrict_name === selected.administration.subdistrict_name) matches.extend(shape.getBounds());
+        }
+        if (matches.isValid()) bounds = matches;
+    }
+    map.fitBounds(bounds, { padding: [24, 24], maxZoom: selected ? 12 : 13, animate: false });
+}
+const resize = new ResizeObserver(fitResponsiveScope);
 resize.observe(element);
-home(); loadTiles(); reset.disabled = false;
+syncQuickFilters(); home(); loadTiles(); reset.disabled = false;
 loadBoundary().finally(() => loadData());
 window.addEventListener('pagehide', () => {
+    if (panel.classList.contains('is-expanded')) document.body.style.overflow = previousOverflow;
     disposed = true; events.abort(); dataAbort?.abort(); clearTimeout(debounce); clearTimeout(tileTimeout);
     resize.disconnect(); reducedMotion.removeEventListener('change', motionChanged);
     tileLayer?.off(); map.remove();

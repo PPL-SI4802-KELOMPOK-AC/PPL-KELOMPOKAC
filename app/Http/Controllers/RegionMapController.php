@@ -13,7 +13,7 @@ class RegionMapController extends Controller
     {
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
-            'condition' => ['nullable', Rule::in(['all', 'has_unserved', 'no_unserved'])],
+            'condition' => ['nullable', Rule::in(['all', 'has_unserved', 'no_unserved', 'unavailable'])],
             'location' => ['nullable', Rule::in(['all', 'available', 'missing'])],
             'kabupaten' => ['nullable', 'regex:/^32\d{2}$/'],
             'page' => ['nullable', 'integer', 'min:1', 'max:1000000'],

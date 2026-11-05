@@ -161,3 +161,25 @@ Bogor terletak di Kota Bogor). Navigasi keyboard, data NULL, filter, kabupaten t
 catatan, detail desa, simpan/edit lintas halaman, serta tampilan 390/320px diperiksa.
 Jumlah akhir tetap 5.311 wilayah dan satu pengguna, tanpa fixture tersisa. Laporan:
 `storage/app/map-reference/area-verification.json`.
+
+## Interaksi penjelajahan peta
+
+Filter cepat mengikuti pilihan Catatan KK: semua, KK positif, nol, atau NULL.
+Ringkasan hasil filter mencakup jumlah wilayah, total KK belum berlistrik, dan
+wilayah tanpa angka KK. `summary.affected_kk` berisi jumlah dari angka yang tersedia;
+jika tidak ada angka tersedia, nilainya NULL, bukan nol. Pilihan `condition=unavailable`
+ditambahkan tanpa mengubah arti filter lama.
+
+Hover dan fokus keyboard memperlihatkan pratinjau nama wilayah serta jumlah KK.
+Klik desa mempertahankan sorotan dan ringkasannya. Kontrol tutup/buka detail tetap
+tersedia. Mode Perluas peta menyediakan bidang peta yang lebih luas, filter cepat,
+dan legenda; Esc mengembalikan halaman, fokus, dan kemampuan scroll sebelumnya.
+Ukuran peta disesuaikan kembali dengan cakupan yang aktif saat layar berubah.
+
+Pencarian dengan hasil dalam satu kabupaten membuka lapisan desa kabupaten itu
+dan memfokuskan batas hasil pencarian. Jika kabupaten yang dipilih tidak cocok,
+tombol Cari di semua kabupaten tersedia sebagai tindakan eksplisit; filter tidak
+diubah diam-diam. Hingga lima pilihan hasil menampilkan kecamatan/kabupaten agar
+nama desa yang sama tidak tertukar. Kembali ke Jawa Barat menghapus pencarian dan
+pilihan kabupaten, sambil mempertahankan filter KK. Nama/kode wilayah dan angka
+tetap berasal dari respons TiDB, sedangkan aset batas tetap geografi saja.

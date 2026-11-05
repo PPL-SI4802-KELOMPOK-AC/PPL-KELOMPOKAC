@@ -96,7 +96,10 @@ class MapDataMySqlTest extends TestCase
         $missing = $this->region(['jumlah_kk_terdampak' => null, 'sumber_data' => null, 'alamat_deskriptif' => 'Alamat tanpa komponen administratif']);
         $this->getJson($this->url())->assertOk()->assertJsonPath('summary.total', 3)
             ->assertJsonPath('summary.has_unserved', 1)->assertJsonPath('summary.no_unserved', 1)
-            ->assertJsonPath('summary.unavailable', 1)->assertJsonPath('summary.unlocated', 3);
+            ->assertJsonPath('summary.unavailable', 1)->assertJsonPath('summary.unlocated', 3)
+            ->assertJsonPath('summary.affected_kk', 23);
+        $this->getJson($this->url(['condition' => 'unavailable']))->assertOk()
+            ->assertJsonPath('summary.total', 1)->assertJsonPath('summary.affected_kk', null);
         foreach (['has_unserved' => 23, 'no_unserved' => 0] as $condition => $families) {
             $this->getJson($this->url(['condition' => $condition, 'kabupaten' => '3299', 'location' => 'missing']))
                 ->assertOk()->assertJsonPath('summary.total', 1)
