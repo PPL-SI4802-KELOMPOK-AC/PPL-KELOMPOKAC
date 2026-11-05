@@ -33,6 +33,8 @@ class RegionMapTest extends TestCase
             ->assertSee('Peta Wilayah | TerangDesa')
             ->assertSee('aria-current="page"', false)
             ->assertSee('data-region-map', false)
+            ->assertSee('id="map-search-suggestions"', false)
+            ->assertSee('aria-controls="map-search-suggestions"', false)
             ->assertSee('Kembali ke Jawa Barat')
             ->assertSee('Memuat peta dasar')
             ->assertSee('Coba lagi')
