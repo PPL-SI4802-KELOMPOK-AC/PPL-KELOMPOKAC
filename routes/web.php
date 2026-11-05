@@ -1,13 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\LoginController;
-use App\Http\Controllers\WilayahController;
-use App\Http\Controllers\RegionMapController;
+use App\Http\Controllers\BuktiPengajuanController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Middleware\RequirePemerintah;
+use App\Http\Controllers\LoginController;
 use App\Http\Controllers\LokasiPengajuanController;
+use App\Http\Controllers\RegionMapController;
+use App\Http\Controllers\WilayahController;
 use App\Http\Middleware\RequireMasyarakat;
+use App\Http\Middleware\RequirePemerintah;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
@@ -25,6 +26,8 @@ Route::prefix('pengajuan/lokasi')->name('pengajuan.')->middleware(RequireMasyara
     Route::get('/', [LokasiPengajuanController::class, 'edit'])->name('lokasi');
     Route::get('/administrasi', [LokasiPengajuanController::class, 'administration'])->middleware('throttle:map-data')->name('lokasi.administrasi');
     Route::post('/', [LokasiPengajuanController::class, 'store'])->middleware('throttle:location-save')->name('lokasi.store');
+    Route::post('/bukti', [BuktiPengajuanController::class, 'store'])->middleware('throttle:location-save')->name('bukti.store');
+    Route::get('/bukti/{bukti}', [BuktiPengajuanController::class, 'show'])->whereNumber('bukti')->name('bukti.show');
 });
 
 Route::prefix('pemerintah/wilayah')->name('wilayah.')->middleware(RequirePemerintah::class)->group(function () {

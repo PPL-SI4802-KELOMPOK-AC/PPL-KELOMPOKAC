@@ -35,6 +35,11 @@ Schema::create('lokasi_pengajuan', function (Blueprint $table) {
     $table->id(); $table->foreignId('pengajuan_id')->unique()->constrained('pengajuan_plts');
     $table->text('alamat_deskriptif'); $table->decimal('latitude', 10, 7)->nullable(); $table->decimal('longitude', 11, 7)->nullable();
 });
+Schema::create('bukti_pengajuan', function (Blueprint $table) {
+    $table->id(); $table->foreignId('pengajuan_id')->constrained('pengajuan_plts');
+    $table->string('nama_file_asli', 255); $table->string('path_file', 512)->unique();
+    $table->string('mime_type', 100); $table->unsignedBigInteger('ukuran_byte'); $table->string('keterangan', 255)->nullable();
+});
 $user = new User(['name' => 'Pemohon Uji PBI-06', 'email' => 'lokasi-e2e@example.test', 'password' => 'lokasi-e2e-password']);
 $user->role = 'masyarakat';
 $user->save();

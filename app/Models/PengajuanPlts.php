@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PengajuanPlts extends Model
@@ -14,5 +15,10 @@ class PengajuanPlts extends Model
     public function lokasi(): HasOne
     {
         return $this->hasOne(LokasiPengajuan::class, 'pengajuan_id');
+    }
+
+    public function bukti(): HasMany
+    {
+        return $this->hasMany(BuktiPengajuan::class, 'pengajuan_id');
     }
 }

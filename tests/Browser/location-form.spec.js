@@ -12,7 +12,13 @@ test.afterAll(async () => {
     }
 });
 
-test('isi lokasi, pilih titik, simpan dan buka ulang draft, lalu periksa tampilan seluler', async ({ page }) => {
+async function openLocationEditor(page) {
+    const editor = page.locator('[data-location-editor]');
+    const summary = page.locator('[data-location-editor] > summary');
+    if (await summary.count() && !await editor.evaluate(element => element.open)) await summary.click();
+}
+
+test('isi lokasi, preview foto bukti, simpan draft dan periksa tampilan seluler', async ({ page }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://tile.openstreetmap.org/**', route => route.fulfill({ contentType: 'image/png', body: tile }));
@@ -29,7 +35,19 @@ test('isi lokasi, pilih titik, simpan dan buka ulang draft, lalu periksa tampila
     await page.locator('#alamat').fill('Kampung Uji, RT 03 / RW 02');
     await page.getByRole('button', { name: 'Simpan draft lokasi' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Draft lokasi berhasil disimpan.' })).toBeVisible();
+    await expect(page.locator('[data-evidence-upload]')).toHaveAttribute('data-preview-ready', 'true');
+    const evidenceInput = page.locator('#photos');
+    await evidenceInput.setInputFiles(Array.from({ length: 6 }, (_, index) => ({
+        name: `bukti-${index}.png`, mimeType: 'image/png', buffer: tile,
+    })));
+    await expect(page.locator('[data-evidence-status]')).toContainText('Pilih maksimal 5 foto lagi');
+    await expect(page.getByRole('button', { name: 'Unggah foto' })).toBeDisabled();
+    await evidenceInput.setInputFiles({ name: 'bukti-lokasi.png', mimeType: 'image/png', buffer: tile });
+    await expect(page.locator('[data-evidence-preview] img')).toHaveCount(1);
+    await expect(page.locator('[data-evidence-status]')).toContainText('1 foto siap diunggah');
+    await page.screenshot({ path: 'test-results/pbi07-evidence-preview.png', fullPage: true });
     await page.reload();
+    await openLocationEditor(page);
     await expect(page.locator('#latitude')).toHaveValue('');
     await expect(page.locator('#longitude')).toHaveValue('');
     await expect(page.getByRole('button', { name: 'Pilih titik di tengah peta' })).toBeEnabled();
@@ -41,9 +59,10 @@ test('isi lokasi, pilih titik, simpan dan buka ulang draft, lalu periksa tampila
     await page.locator('#alamat').fill('Kampung Uji, RT 03 / RW 02');
     await page.getByRole('button', { name: 'Simpan draft lokasi' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Draft lokasi berhasil disimpan.' })).toBeVisible();
-    const id = await page.locator('[name=draft_id]').inputValue();
+    const id = await page.locator('.location-grid [name=draft_id]').inputValue();
     expect(Number(id)).toBeGreaterThan(0);
     await page.reload();
+    await openLocationEditor(page);
     await expect(page.locator('#kabupaten')).toHaveValue('3205');
     await expect(page.locator('#kecamatan')).toHaveValue('Cikelet');
     await expect(page.locator('#desa')).toHaveValue('32.05.30.2010');
@@ -52,16 +71,19 @@ test('isi lokasi, pilih titik, simpan dan buka ulang draft, lalu periksa tampila
     await expect(page.locator('.location-point-icon')).toHaveCount(1);
     await page.locator('#alamat').fill('Kampung Uji Revisi');
     await page.getByRole('button', { name: 'Simpan draft lokasi' }).click();
-    await expect(page.locator('[name=draft_id]')).toHaveValue(id);
+    await expect(page.locator('.location-grid [name=draft_id]')).toHaveValue(id);
     await page.screenshot({ path: 'test-results/pbi06-location-desktop.png', fullPage: true });
+    await openLocationEditor(page);
     for (const width of [390, 320]) {
         await page.setViewportSize({ width, height: 900 });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await expect(page.getByRole('button', { name: 'Simpan draft lokasi' })).toBeVisible();
     }
     await page.setViewportSize({ width: 390, height: 900 });
+    await page.locator('[data-location-editor] > summary').click();
     await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
     await page.screenshot({ path: 'test-results/pbi06-location-mobile.png', fullPage: true });
+    await openLocationEditor(page);
     await page.route('**/pengajuan/lokasi/administrasi?**', route => route.fulfill({ status: 503, json: { message: 'Gangguan uji.' } }));
     await page.locator('#kabupaten').selectOption('3201');
     await expect(page.locator('#desa')).toHaveValue('');
@@ -71,18 +93,21 @@ test('isi lokasi, pilih titik, simpan dan buka ulang draft, lalu periksa tampila
     await page.locator('[data-administration-retry]').click();
     await expect(page.locator('#kecamatan')).toBeEnabled();
     await page.reload();
+    await openLocationEditor(page);
     await expect(page.getByRole('button', { name: 'Hapus titik' })).toBeEnabled();
     await page.getByRole('button', { name: 'Hapus titik' }).click();
     await expect(page.locator('.location-point-icon')).toHaveCount(0);
     await page.getByRole('button', { name: 'Simpan draft lokasi' }).click();
-    await expect(page.locator('[name=draft_id]')).toHaveValue(id);
+    await expect(page.locator('.location-grid [name=draft_id]')).toHaveValue(id);
     await page.reload();
+    await openLocationEditor(page);
     await expect(page.locator('#latitude')).toHaveValue('');
     await expect(page.locator('#longitude')).toHaveValue('');
     await expect(page.locator('.location-point-icon')).toHaveCount(0);
     await page.unroute('https://tile.openstreetmap.org/**');
     await page.route('https://tile.openstreetmap.org/**', route => route.abort());
     await page.reload();
+    await openLocationEditor(page);
     await expect(page.locator('[data-location-map-status]')).toContainText('peta dasar gagal dimuat');
     await expect(page.locator('#alamat')).toHaveValue('Kampung Uji Revisi');
     await expect(page.locator('#latitude')).toHaveValue('');

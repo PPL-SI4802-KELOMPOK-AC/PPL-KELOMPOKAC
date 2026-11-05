@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\PengajuanPlts;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class LokasiPengajuanTest extends TestCase
@@ -20,19 +22,37 @@ class LokasiPengajuanTest extends TestCase
         DB::purge('sqlite');
         $this->withoutVite();
         Schema::create('users', function (Blueprint $table) {
-            $table->id(); $table->string('name'); $table->string('email')->unique();
-            $table->string('password'); $table->string('role'); $table->timestamps();
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('password');
+            $table->string('role');
+            $table->timestamps();
         });
         Schema::create('pengajuan_plts', function (Blueprint $table) {
-            $table->id(); $table->string('nomor_tiket', 50)->unique();
-            $table->foreignId('user_id')->constrained('users'); $table->unsignedBigInteger('wilayah_id')->nullable();
+            $table->id();
+            $table->string('nomor_tiket', 50)->unique();
+            $table->foreignId('user_id')->constrained('users');
+            $table->unsignedBigInteger('wilayah_id')->nullable();
             $table->string('ringkasan_pengajuan');
             $table->enum('status_terkini', ['diajukan', 'diperiksa', 'diverifikasi', 'diproses', 'selesai', 'ditolak', 'draft'])->default('diajukan');
             $table->timestamp('status_diperbarui_pada')->useCurrent();
         });
         Schema::create('lokasi_pengajuan', function (Blueprint $table) {
-            $table->id(); $table->foreignId('pengajuan_id')->unique()->constrained('pengajuan_plts');
-            $table->text('alamat_deskriptif'); $table->decimal('latitude', 10, 7)->nullable(); $table->decimal('longitude', 11, 7)->nullable();
+            $table->id();
+            $table->foreignId('pengajuan_id')->unique()->constrained('pengajuan_plts');
+            $table->text('alamat_deskriptif');
+            $table->decimal('latitude', 10, 7)->nullable();
+            $table->decimal('longitude', 11, 7)->nullable();
+        });
+        Schema::create('bukti_pengajuan', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('pengajuan_id')->constrained('pengajuan_plts');
+            $table->string('nama_file_asli', 255);
+            $table->string('path_file', 512)->unique();
+            $table->string('mime_type', 100);
+            $table->unsignedBigInteger('ukuran_byte');
+            $table->string('keterangan', 255)->nullable();
         });
     }
 
@@ -50,6 +70,14 @@ class LokasiPengajuanTest extends TestCase
         return array_merge(['provinsi' => 'Jawa Barat', 'kabupaten' => '3205', 'kecamatan' => 'Cikelet',
             'desa' => '32.05.30.2010', 'alamat' => 'Kampung Uji, RT 03 / RW 02',
             'latitude' => '-7,5812', 'longitude' => '107,6984'], $overrides);
+    }
+
+    private function photo(string $name = 'bukti.png', ?int $kilobytes = null): UploadedFile
+    {
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6l1sAAAAASUVORK5CYII=');
+        $file = UploadedFile::fake()->createWithContent($name, $png);
+
+        return $kilobytes === null ? $file : $file->size($kilobytes);
     }
 
     public function test_only_masyarakat_can_open_choices_or_save_locations(): void
@@ -79,8 +107,7 @@ class LokasiPengajuanTest extends TestCase
         $this->assertDatabaseHas('lokasi_pengajuan', ['pengajuan_id' => $draft->id,
             'alamat_deskriptif' => 'Kampung Uji, RT 03 / RW 02, Awassagara, Cikelet, Kabupaten Garut, Jawa Barat',
             'latitude' => -7.5812, 'longitude' => 107.6984]);
-        $this->get('/pengajuan/lokasi')->assertOk()->assertViewHas('values', fn ($values) =>
-            $values['kabupaten'] === '3205' && $values['kecamatan'] === 'Cikelet'
+        $this->get('/pengajuan/lokasi')->assertOk()->assertViewHas('values', fn ($values) => $values['kabupaten'] === '3205' && $values['kecamatan'] === 'Cikelet'
             && $values['desa'] === '32.05.30.2010' && $values['alamat'] === 'Kampung Uji, RT 03 / RW 02');
         $ticket = $draft->nomor_tiket;
         // Retry permintaan awal tidak boleh membuat pengajuan/lokasi kedua.
@@ -147,5 +174,120 @@ class LokasiPengajuanTest extends TestCase
         $this->actingAs($this->user())->getJson('/pengajuan/lokasi/administrasi?kabupaten=3205')
             ->assertOk()->assertJsonFragment(['code' => '32.05.30.2010', 'name' => 'Awassagara', 'subdistrict' => 'Cikelet', 'district' => 'Garut']);
         $this->getJson('/pengajuan/lokasi/administrasi?kabupaten=9999')->assertUnprocessable();
+    }
+
+    public function test_owner_can_upload_multiple_valid_photos_to_their_draft(): void
+    {
+        Storage::fake('r2');
+        $owner = $this->user();
+        $this->actingAs($owner)->post('/pengajuan/lokasi', $this->input())->assertRedirect();
+        $draft = PengajuanPlts::firstOrFail();
+        $photos = [$this->photo('panel-lapuk.png', 100), $this->photo('atap.png', 120)];
+
+        $this->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id, 'photos' => $photos])
+            ->assertRedirect('/pengajuan/lokasi')->assertSessionHas('evidence_saved', '2 foto bukti berhasil disimpan.');
+
+        $this->assertDatabaseCount('bukti_pengajuan', 2);
+        foreach ($draft->fresh()->bukti as $evidence) {
+            $this->assertSame($draft->id, $evidence->pengajuan_id);
+            $this->assertContains($evidence->mime_type, ['image/jpeg', 'image/png']);
+            $this->assertGreaterThan(0, $evidence->ukuran_byte);
+            Storage::disk('r2')->assertExists($evidence->path_file);
+        }
+        $this->get('/pengajuan/lokasi')->assertOk()->assertSee('panel-lapuk.png')->assertSee('atap.png');
+    }
+
+    public function test_photo_upload_rejects_non_images_oversized_images_and_more_than_five(): void
+    {
+        Storage::fake('r2');
+        $this->actingAs($this->user())->post('/pengajuan/lokasi', $this->input())->assertRedirect();
+        $draft = PengajuanPlts::firstOrFail();
+
+        $this->postJson('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
+            'photos' => [UploadedFile::fake()->create('catatan.txt', 10, 'text/plain')]])->assertUnprocessable();
+        $this->postJson('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
+            'photos' => [$this->photo('besar.png', 5121)]])->assertUnprocessable();
+        $this->postJson('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
+            'photos' => array_map(fn ($index) => $this->photo('foto-'.$index.'.png'), range(1, 6))])->assertUnprocessable();
+        $this->assertDatabaseCount('bukti_pengajuan', 0);
+        $this->assertSame([], Storage::disk('r2')->allFiles());
+    }
+
+    public function test_photo_upload_checks_role_ownership_and_draft_status(): void
+    {
+        Storage::fake('r2');
+        $owner = $this->user();
+        $this->actingAs($owner)->post('/pengajuan/lokasi', $this->input())->assertRedirect();
+        $draft = PengajuanPlts::firstOrFail();
+        $photo = fn () => $this->photo('bukti.png');
+
+        $this->actingAs($this->user('pemerintah'))->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id, 'photos' => [$photo()]])->assertForbidden();
+        $this->actingAs($this->user())->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id, 'photos' => [$photo()]])->assertNotFound();
+        $draft->status_terkini = 'diajukan';
+        $draft->save();
+        $this->actingAs($owner)->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id, 'photos' => [$photo()]])->assertStatus(409);
+        $this->assertDatabaseCount('bukti_pengajuan', 0);
+        $this->assertSame([], Storage::disk('r2')->allFiles());
+    }
+
+    public function test_metadata_failure_removes_only_objects_uploaded_by_the_request(): void
+    {
+        Storage::fake('r2');
+        $this->actingAs($this->user())->post('/pengajuan/lokasi', $this->input())->assertRedirect();
+        $draft = PengajuanPlts::firstOrFail();
+        $preexistingPath = "bukti-pengajuan/$draft->id/keep.png";
+        Storage::disk('r2')->put($preexistingPath, 'pre-existing object');
+        DB::statement("CREATE TRIGGER fail_bukti_insert BEFORE INSERT ON bukti_pengajuan BEGIN SELECT RAISE(FAIL, 'metadata unavailable'); END");
+
+        $this->from('/pengajuan/lokasi')->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
+            'photos' => [$this->photo('bukti.png')]])
+            ->assertRedirect('/pengajuan/lokasi')->assertSessionHasErrors('photos');
+
+        $this->assertDatabaseCount('bukti_pengajuan', 0);
+        $this->assertSame([$preexistingPath], Storage::disk('r2')->allFiles());
+    }
+
+    public function test_photo_upload_rejects_when_draft_already_has_five_evidence_rows(): void
+    {
+        Storage::fake('r2');
+        $this->actingAs($this->user())->post('/pengajuan/lokasi', $this->input())->assertRedirect();
+        $draft = PengajuanPlts::firstOrFail();
+        for ($index = 1; $index <= 5; $index++) {
+            DB::table('bukti_pengajuan')->insert(['pengajuan_id' => $draft->id, 'nama_file_asli' => "lama-$index.jpg",
+                'path_file' => "bukti-pengajuan/$draft->id/lama-$index.jpg", 'mime_type' => 'image/jpeg', 'ukuran_byte' => 100]);
+        }
+
+        $this->postJson('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
+            'photos' => [$this->photo('baru.png')]])->assertUnprocessable();
+        $this->assertDatabaseCount('bukti_pengajuan', 5);
+        $this->assertSame([], Storage::disk('r2')->allFiles());
+    }
+
+    public function test_r2_failure_shows_a_clear_error_without_creating_metadata(): void
+    {
+        $this->actingAs($this->user())->post('/pengajuan/lokasi', $this->input())->assertRedirect();
+        $draft = PengajuanPlts::firstOrFail();
+        Storage::shouldReceive('disk')->once()->with('r2')->andThrow(new \RuntimeException('private R2 failure detail'));
+
+        $this->from('/pengajuan/lokasi')->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
+            'photos' => [$this->photo('bukti.png')]])
+            ->assertRedirect('/pengajuan/lokasi')->assertSessionHasErrors('photos');
+
+        $this->assertDatabaseCount('bukti_pengajuan', 0);
+        $this->assertStringNotContainsString('private R2 failure detail', session()->get('errors')->first('photos'));
+    }
+
+    public function test_saved_photo_redirect_is_issued_only_to_the_draft_owner(): void
+    {
+        Storage::fake('r2');
+        $owner = $this->user();
+        $this->actingAs($owner)->post('/pengajuan/lokasi', $this->input())->assertRedirect();
+        $draft = PengajuanPlts::firstOrFail();
+        $id = DB::table('bukti_pengajuan')->insertGetId(['pengajuan_id' => $draft->id, 'nama_file_asli' => 'bukti.png',
+            'path_file' => "bukti-pengajuan/$draft->id/unique.png", 'mime_type' => 'image/png', 'ukuran_byte' => 68]);
+        Storage::disk('r2')->buildTemporaryUrlsUsing(fn ($path) => 'https://private-r2.example.test/signed/'.$path);
+
+        $this->actingAs($owner)->get('/pengajuan/lokasi/bukti/'.$id)->assertRedirect('https://private-r2.example.test/signed/bukti-pengajuan/'.$draft->id.'/unique.png');
+        $this->actingAs($this->user())->get('/pengajuan/lokasi/bukti/'.$id)->assertNotFound();
     }
 }
