@@ -367,12 +367,17 @@ function renderList(list) {
     searchRecords = list.data;
     renderSearchSuggestions(searchRecords);
 }
+function hideSearchSuggestions() {
+    if (searchSuggestions) searchSuggestions.hidden = true;
+    filters.elements.q.setAttribute('aria-expanded', 'false');
+}
 function renderSearchSuggestions(records) {
+    // Suggestions are optional: older/cached templates must not break map rendering.
+    if (!searchSuggestions) return;
     const query = filters.elements.q.value.trim();
     searchSuggestions.replaceChildren();
     if (!query || document.activeElement !== filters.elements.q || !records.length) {
-        searchSuggestions.hidden = true;
-        filters.elements.q.setAttribute('aria-expanded', 'false');
+        hideSearchSuggestions();
         return;
     }
     for (const record of records.slice(0, 6)) {
@@ -383,8 +388,7 @@ function renderSearchSuggestions(records) {
         option.setAttribute('aria-label', `${record.name}, ${record.address || 'alamat belum tersedia'}`);
         option.append(textNode('strong', record.name), textNode('small', record.address || 'Alamat belum tersedia'));
         option.addEventListener('click', () => {
-            searchSuggestions.hidden = true;
-            filters.elements.q.setAttribute('aria-expanded', 'false');
+            hideSearchSuggestions();
             selectRegion(record, true);
         });
         searchSuggestions.append(option);
@@ -454,8 +458,7 @@ async function loadData() {
     }
 }
 function filterChanged() {
-    searchSuggestions.hidden = true;
-    filters.elements.q.setAttribute('aria-expanded', 'false');
+    searchRecords = []; hideSearchSuggestions();
     clearTimeout(debounce); dataAbort?.abort(); page = 1;
     selectedId = null; pinnedPreview = null; resetPreview(); selection.clearLayers(); map.closePopup();
     focusSearch = Boolean(filters.elements.q.value.trim()); searchResults.hidden = true; searchGlobal.hidden = true; syncQuickFilters();
@@ -519,18 +522,27 @@ filters.addEventListener('reset', event => {
 filters.elements.q.addEventListener('input', filterChanged);
 filters.elements.q.addEventListener('focus', () => renderSearchSuggestions(searchRecords));
 filters.elements.q.addEventListener('blur', () => setTimeout(() => {
-    searchSuggestions.hidden = true;
-    filters.elements.q.setAttribute('aria-expanded', 'false');
+    if (!searchSuggestions?.contains(document.activeElement)) hideSearchSuggestions();
 }, 150));
 filters.elements.q.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
-        searchSuggestions.hidden = true;
-        filters.elements.q.setAttribute('aria-expanded', 'false');
+        hideSearchSuggestions();
     }
-    if (event.key === 'ArrowDown' && !searchSuggestions.hidden) {
+    if (event.key === 'ArrowDown' && searchSuggestions && !searchSuggestions.hidden) {
         event.preventDefault();
         searchSuggestions.querySelector('button')?.focus();
     }
+});
+searchSuggestions?.addEventListener('focusout', event => {
+    if (!searchSuggestions.contains(event.relatedTarget) && event.relatedTarget !== filters.elements.q) hideSearchSuggestions();
+});
+searchSuggestions?.addEventListener('keydown', event => {
+    const options = [...searchSuggestions.querySelectorAll('button')];
+    const index = options.indexOf(document.activeElement);
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault(); options[(index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length]?.focus();
+    }
+    if (event.key === 'Escape') { event.preventDefault(); filters.elements.q.focus(); hideSearchSuggestions(); }
 });
 for (const name of ['condition', 'location', 'kabupaten']) filters.elements[name].addEventListener('change', filterChanged);
 document.querySelector('[data-map-prev]').addEventListener('click', () => { if (page > 1) { page--; loadData(); } });

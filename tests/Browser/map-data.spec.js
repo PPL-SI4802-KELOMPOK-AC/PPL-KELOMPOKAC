@@ -16,6 +16,49 @@ test.describe('Peta wilayah dari TiDB', () => {
         await expect(page.locator('[data-boundary-state]')).toHaveAttribute('data-boundary-state', 'ready');
     });
 
+    test('saran pencarian hasil merge tersedia dan tetap bisa dipilih dengan keyboard', async ({ page }) => {
+        const errors = []; page.on('pageerror', error => errors.push(error.message));
+        await expect(page.locator('#map-search-suggestions')).toHaveCount(1);
+        await page.getByLabel('Cari wilayah', { exact: true }).fill('BOJONGSOANG');
+        await expect(page.getByLabel('Kabupaten/kota')).toHaveValue('3204', { timeout: 35000 });
+        await ready(page);
+        const suggestions = page.locator('#map-search-suggestions');
+        await expect(suggestions).toBeVisible();
+        const firstName = await suggestions.locator('button strong').first().innerText();
+        await page.getByLabel('Cari wilayah', { exact: true }).press('ArrowDown');
+        await expect(suggestions.locator('button').first()).toBeFocused();
+        // The input blur delay must not hide options while keyboard focus is inside the list.
+        await page.waitForTimeout(200);
+        await expect(suggestions).toBeVisible();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('#map-detail-title')).toHaveText(firstName);
+        await expect(suggestions).toBeHidden();
+        expect(errors).toEqual([]);
+    });
+
+    test('template tanpa kotak saran tetap dapat memuat data dan menggunakan pencarian', async ({ page }) => {
+        const errors = []; page.on('pageerror', error => errors.push(error.message));
+        await page.addInitScript(() => {
+            const observer = new MutationObserver(() => {
+                const optional = document.getElementById('map-search-suggestions');
+                if (optional) { optional.remove(); observer.disconnect(); }
+            });
+            observer.observe(document, { childList: true, subtree: true });
+        });
+        await page.goto('/peta-wilayah'); await ready(page);
+        await expect(page.locator('#map-search-suggestions')).toHaveCount(0);
+        await expect(page.locator('[data-map-rows] tr')).toHaveCount(15);
+        await page.getByLabel('Cari wilayah', { exact: true }).fill('BOJONGSOANG');
+        await page.getByRole('button', { name: 'Terapkan', exact: true }).click();
+        await expect(page.getByLabel('Kabupaten/kota')).toHaveValue('3204', { timeout: 35000 });
+        await ready(page);
+        await page.getByLabel('Cari wilayah', { exact: true }).focus();
+        await page.keyboard.press('Escape');
+        await ready(page);
+        expect(await page.locator('[data-map-rows] tr').count()).toBeGreaterThan(0);
+        expect(errors).toEqual([]);
+    });
+
     test('pagination, jumlah positif dan nol, pencarian kabupaten, detail, reload, serta reset', async ({ page }) => {
         await expect(page.locator('[data-map-data-status]')).toContainText(`${format(baseline.summary.total)} wilayah sesuai filter`);
         await expect(page.locator('[data-map-rows] tr')).toHaveCount(15);
