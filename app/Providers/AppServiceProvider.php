@@ -26,5 +26,6 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('map-data', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
         RateLimiter::for('dashboard-data', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+        RateLimiter::for('location-save', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->id ?? $request->ip()));
     }
 }

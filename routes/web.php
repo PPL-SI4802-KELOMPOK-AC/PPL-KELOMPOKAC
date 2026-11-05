@@ -6,6 +6,8 @@ use App\Http\Controllers\WilayahController;
 use App\Http\Controllers\RegionMapController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Middleware\RequirePemerintah;
+use App\Http\Controllers\LokasiPengajuanController;
+use App\Http\Middleware\RequireMasyarakat;
 
 Route::get('/', function () {
     return view('welcome');
@@ -18,6 +20,12 @@ Route::get('/peta-wilayah/data', [RegionMapController::class, 'data'])->middlewa
 Route::get('/login', [LoginController::class, 'create'])->name('login');
 Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:login')->name('login.store');
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+
+Route::prefix('pengajuan/lokasi')->name('pengajuan.')->middleware(RequireMasyarakat::class)->group(function () {
+    Route::get('/', [LokasiPengajuanController::class, 'edit'])->name('lokasi');
+    Route::get('/administrasi', [LokasiPengajuanController::class, 'administration'])->middleware('throttle:map-data')->name('lokasi.administrasi');
+    Route::post('/', [LokasiPengajuanController::class, 'store'])->middleware('throttle:location-save')->name('lokasi.store');
+});
 
 Route::prefix('pemerintah/wilayah')->name('wilayah.')->middleware(RequirePemerintah::class)->group(function () {
     Route::get('/', [WilayahController::class, 'index'])->name('index');

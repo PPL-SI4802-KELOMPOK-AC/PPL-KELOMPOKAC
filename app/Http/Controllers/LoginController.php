@@ -24,7 +24,7 @@ class LoginController extends Controller
         }
         $request->session()->regenerate();
 
-        return redirect()->intended(route('wilayah.index'));
+        return redirect()->intended(route($request->user()->role === 'masyarakat' ? 'pengajuan.lokasi' : 'wilayah.index'));
     }
 
     public function destroy(Request $request)
