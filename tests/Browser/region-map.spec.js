@@ -58,7 +58,7 @@ test('navigation, initial Jawa Barat viewport, drag, zoom and return', async ({ 
     await expect.poll(() => zoomLevel(page)).toBe(initialZoom);
     await ready(page);
     // Compare the geographic view against a fresh fit, including after panning.
-    await expect(page.locator('.leaflet-map-pane')).not.toHaveClass(/leaflet-zoom-anim/);
+    await expect(page.locator('.leaflet-map-pane')).not.toHaveClass(/leaflet-(zoom|pan)-anim/);
     const resetView = await visibleTiles(page);
     await page.reload();
     await ready(page);

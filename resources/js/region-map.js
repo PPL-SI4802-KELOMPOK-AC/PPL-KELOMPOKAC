@@ -41,8 +41,14 @@ map.on('zoomend', () => {
 });
 L.control.zoom({ position: 'topright', zoomInTitle: 'Perbesar peta', zoomOutTitle: 'Perkecil peta' }).addTo(map);
 L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map);
-const markers = L.layerGroup().addTo(map);
+const areas = L.layerGroup().addTo(map);
+const geometryCache = new Map();
+let areaLayers = new Map(), renderedDistrict = null;
+const areaColors = { has_unserved: '#c53d48', no_unserved: '#2f8b63', unavailable: '#b8c4ce' };
+const areaStatus = document.querySelector('[data-map-area-status]');
+const legend = document.querySelector('[data-area-legend]');
 const selection = L.layerGroup().addTo(map);
+function closeAreaTooltips() { areas.eachLayer(group => group.eachLayer(shape => shape.closeTooltip())); }
 function home(animate = false) {
     if (disposed) return;
     if (zooming) { resetAfterZoom = true; return; }
@@ -123,72 +129,141 @@ function detailBlock(title, values, notes = []) {
     return block;
 }
 function selectRegion(record, pan = false) {
+    closeAreaTooltips();
     selectedId = record.id;
+    const shape = areaLayers.get(record.code);
     document.querySelector('#map-detail-title').textContent = record.name;
     const detail = document.querySelector('[data-map-detail]');
     detail.replaceChildren(textNode('p', record.address), textNode('p', `Kode Kemendagri: ${record.code ?? 'Belum tersedia'}`, 'source-text'));
-    const csv = record.csv;
+    const electricity = record.electricity;
     detail.append(textNode('p', categories[record.category].label, `condition-label ${record.category}`));
-    detail.append(detailBlock('Data wilayah · 2024', [
-        ['Kecamatan', csv?.kecamatan_name ?? 'Belum tersedia'],
-        ['Kabupaten/kota', csv?.kabupaten_name ?? 'Belum tersedia'],
-        ['Keluarga belum berlistrik', familyCount(csv?.belum_listrik)],
-        ['Keluarga pengguna PLN', familyCount(csv?.pln)],
-        ['Tahun data', csv ? String(csv.year) : 'Belum tersedia'],
-    ], [['Sumber: dataset acuan proyek • Tahun 2024', 'source-text']]));
+    detail.append(detailBlock('Data wilayah', [
+        ['Kecamatan', record.administration.subdistrict_name ?? 'Belum tersedia'],
+        ['Kabupaten/kota', record.administration.district_name ?? 'Belum tersedia'],
+        ['Keluarga belum berlistrik', familyCount(electricity.unserved_families)],
+        ['Keluarga pengguna PLN', familyCount(electricity.pln_families)],
+        ['Tahun data', electricity.year === null ? 'Belum tersedia' : String(electricity.year)],
+    ], [[`Sumber: ${electricity.source ?? 'Belum tersedia'}`, 'source-text']]));
     if (record.government.condition || record.government.affected_kk !== null || record.government.observation_date || record.government.source) detail.append(detailBlock('Catatan pada aplikasi', [
         ['Kondisi listrik', record.government.condition_label],
         ['KK terdampak', number(record.government.affected_kk)],
         ['Tanggal pengamatan', record.government.observation_date ?? 'Belum tersedia'],
     ], [[`Sumber: ${record.government.source ?? 'Belum dicatat'}`, 'source-text']]));
-    detail.append(detailBlock(record.location ? 'Lokasi referensi desa' : 'Lokasi belum tersedia', [], [
+    detail.append(detailBlock(shape ? 'Batas desa/kelurahan' : record.location ? 'Lokasi referensi desa' : 'Lokasi belum tersedia', [], [
         [record.location ? record.location.source_label : record.location_unavailable_reason, 'source-text'],
-        ['Titik bukan lokasi rumah, kelompok keluarga, atau calon pemasangan PLTS.', 'detail-hint'],
+        ['Area menunjukkan wilayah desa, bukan lokasi rumah atau calon pemasangan PLTS.', 'detail-hint'],
     ]));
     selection.clearLayers();
-    if (record.location) {
-        const [lng, lat] = record.location.coordinates;
-        L.circleMarker([lat, lng], { radius: 15, color: '#f5ac00', weight: 3, fill: false, interactive: false }).addTo(selection);
-        if (pan) map.setView([lat, lng], Math.max(map.getZoom(), 13), { animate: !reducedMotion.matches });
+    if (shape) {
+        L.geoJSON(shape.toGeoJSON(), { interactive: false, style: { color: '#153e54', weight: 4, fillOpacity: 0 } }).addTo(selection);
+        if (pan) map.fitBounds(shape.getBounds(), { padding: [35, 35], maxZoom: 14, animate: !reducedMotion.matches });
+    } else if (pan && record.administration.district_code && filters.elements.kabupaten.value !== record.administration.district_code) {
+        filters.elements.kabupaten.value = record.administration.district_code;
+        const id = record.id;
+        loadData().then(() => { if (selectedId === id) selectRegion(record, true); });
     }
     rows.querySelectorAll('tr').forEach(row => row.classList.toggle('is-selected', Number(row.dataset.id) === selectedId));
     if (pan) { document.querySelector('#map-detail-title').focus({ preventScroll: true }); document.querySelector('.map-workspace').scrollIntoView({ block: 'nearest', behavior: reducedMotion.matches ? 'auto' : 'smooth' }); }
 }
-function villagePopup(record) {
-    const popup = document.createElement('div'); popup.className = 'map-popup';
-    popup.append(textNode('h3', record.name), textNode('p', 'Lokasi referensi desa'), textNode('p', categories[record.category].label));
-    popup.append(textNode('p', `Keluarga belum berlistrik: ${familyCount(record.csv?.belum_listrik)}`));
-    popup.append(textNode('p', 'Sumber: dataset acuan proyek • Tahun 2024'));
-    const button = textNode('button', 'Baca informasi', 'button'); button.type = 'button';
-    button.addEventListener('click', () => selectRegion(record, false)); popup.append(button);
-    return popup;
+function shareColor(share) {
+    return share === null ? '#b8c4ce' : share === 0 ? '#2f8b63'
+        : share <= 10 ? '#8fbd71' : share <= 25 ? '#f0c75b' : share <= 50 ? '#e88a4c' : '#c53d48';
 }
-function renderMarkers(features) {
-    markers.clearLayers();
-    let count = 0;
-    features.forEach(feature => {
-        if (feature.type === 'cluster') {
-            const [lng, lat] = feature.coordinates;
-            const categories = Object.keys(feature.categories);
-            const category = categories.length === 1 && ['has_unserved', 'no_unserved', 'unavailable'].includes(categories[0]) ? categories[0] : '';
-            const marker = L.marker([lat, lng], { icon: L.divIcon({ className: 'cluster-icon', html: `<span class="cluster-bubble ${category}">${number(feature.count)}</span>`, iconSize: [42, 42], iconAnchor: [21, 21] }), title: `${feature.count} lokasi referensi desa`, alt: `${feature.count} lokasi referensi desa` });
-            const popup = document.createElement('div'); popup.className = 'map-popup';
-            popup.append(textNode('h3', `${number(feature.count)} lokasi desa`));
-            popup.append(textNode('p', `Ada KK belum berlistrik: ${number(feature.categories.has_unserved ?? 0)} desa · Tidak tercatat KK belum berlistrik: ${number(feature.categories.no_unserved ?? 0)} desa · Data belum tersedia: ${number(feature.categories.unavailable ?? 0)} desa`));
-            popup.append(textNode('p', 'Kelompok penanda desa, bukan jumlah keluarga. Gunakan pencarian/daftar untuk memilih desa.'));
-            const button = textNode('button', 'Perbesar kelompok', 'button'); button.type = 'button';
-            button.addEventListener('click', () => { map.closePopup(); map.fitBounds(feature.bounds, { padding: [40, 40], maxZoom: Math.min(19, map.getZoom() + 3), animate: !reducedMotion.matches }); });
-            popup.append(button); marker.bindPopup(popup, { autoPan: false }).addTo(markers); count += feature.count;
-        } else {
-            const record = feature.record;
-            const [lng, lat] = record.location.coordinates;
-            const label = `Lokasi referensi desa ${record.name} — ${categories[record.category].label}`;
-            const marker = L.marker([lat, lng], { icon: L.divIcon({ className: 'village-icon', html: `<span class="village-dot ${record.category}" aria-hidden="true">${categories[record.category].symbol}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }), title: label, alt: label });
-            marker.bindPopup(villagePopup(record), { autoPan: false }).on('click', () => selectRegion(record)).addTo(markers); count++;
-        }
-    });
-    element.dataset.visibleLocations = String(count);
-    element.dataset.markerCount = String(features.length);
+function clearAreas() {
+    areas.clearLayers(); areaLayers.clear();
+    element.dataset.areaCount = '0';
+}
+async function geometry(district, signal) {
+    const key = district || 'districts';
+    if (!geometryCache.has(key)) {
+        const name = district ? 'villages-' + district : 'districts';
+        const data = await json(element.dataset.areasUrl + '/' + name + '.geojson', signal);
+        if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) throw new Error('Batas wilayah tidak valid.');
+        geometryCache.set(key, data);
+    }
+    return geometryCache.get(key);
+}
+function areaTooltip(name, lines) {
+    const box = document.createElement('div'); box.className = 'area-tooltip';
+    box.append(textNode('strong', name));
+    for (const line of lines) box.append(textNode('div', line));
+    return box;
+}
+async function renderAreas(data, signal) {
+    if (!data) throw new Error('Ringkasan area belum tersedia.');
+    areaStatus.textContent = 'Memuat batas wilayah…';
+    const collection = await geometry(data.district, signal);
+    if (signal.aborted) return;
+    clearAreas(); selection.clearLayers();
+    const isVillage = data.level === 'village';
+    const layer = L.geoJSON(collection, {
+        style: feature => {
+            const value = isVillage ? data.villages[feature.properties.code] : data.districts[feature.properties.code];
+            const color = isVillage ? areaColors[value?.category ?? 'unavailable'] : shareColor(value?.share ?? null);
+            return { color: '#fff', weight: isVillage ? .9 : 1.5, fillColor: color,
+                fillOpacity: value ? .78 : .5, className: 'map-area ' + (isVillage ? 'village-area' : 'district-area') };
+        },
+        onEachFeature: (feature, shape) => {
+            const code = feature.properties.code;
+            const record = isVillage ? data.villages[code] : null;
+            const summary = data.districts[code];
+            const name = isVillage ? feature.properties.name : summary?.name ?? feature.properties.name;
+            const lines = isVillage ? [feature.properties.subdistrict + ' · ' + feature.properties.district,
+                record ? categories[record.category].label : 'Tidak ada data aplikasi yang cocok dengan batas ini',
+                'KK belum berlistrik: ' + familyCount(record?.electricity.unserved_families)]
+                : ['KK belum berlistrik: ' + familyCount(summary?.families),
+                    summary ? summary.has_unserved + ' dari ' + summary.known + ' desa berangka tersedia memiliki KK belum berlistrik' : 'Data aplikasi belum tersedia',
+                    summary?.unavailable ? summary.unavailable + ' desa belum memiliki angka' : 'Klik untuk melihat desa/kelurahan'];
+            shape.bindTooltip(areaTooltip(name, lines), { sticky: true });
+            shape.on('mouseover', () => { shape.setStyle({ weight: 2.5, color: '#234a5f', fillOpacity: .94 }); shape.bringToFront(); });
+            shape.on('mouseout', () => layer.resetStyle(shape));
+            shape.on('click', () => {
+                shape.closeTooltip();
+                if (isVillage) {
+                    if (record) selectRegion(record);
+                    else {
+                        selectedId = null; selection.clearLayers();
+                        document.querySelector('#map-detail-title').textContent = name;
+                        document.querySelector('[data-map-detail]').replaceChildren(textNode('p', feature.properties.subdistrict + ', ' + feature.properties.district), textNode('p', 'Batas desa tersedia, tetapi belum ada data aplikasi yang cocok. Warna abu-abu tidak berarti nol KK.'));
+                    }
+                } else {
+                    filters.elements.kabupaten.value = code;
+                    if (filters.elements.kabupaten.value === code) { filterChanged(); clearTimeout(debounce); loadData(); }
+                    else {
+                        document.querySelector('#map-detail-title').textContent = name;
+                        document.querySelector('[data-map-detail]').replaceChildren(textNode('p', 'Batas kabupaten tersedia; data aplikasi untuk kabupaten ini belum tersedia.'));
+                    }
+                }
+            });
+            shape.on('add', () => {
+                const path = shape.getElement?.();
+                if (path) {
+                    path.setAttribute('tabindex', '0'); path.setAttribute('role', 'button');
+                    path.setAttribute('aria-label', name + (isVillage ? ' — ' + (record ? categories[record.category].label : 'Data belum tersedia') : ' — Lihat desa'));
+                    path.dataset.areaCode = code;
+                    L.DomEvent.on(path, 'keydown', event => { if (event.key === 'Enter' || event.key === ' ') { L.DomEvent.preventDefault(event); shape.fire('click'); } });
+                }
+            });
+            if (isVillage && record) areaLayers.set(code, shape);
+        },
+    }).addTo(areas);
+    element.dataset.areaLevel = data.level;
+    element.dataset.areaCount = String(collection.features.length);
+    const matched = isVillage ? Object.keys(data.villages).length : Object.keys(data.districts).length;
+    areaStatus.textContent = isVillage ? collection.features.length + ' batas desa/kelurahan · ' + matched + ' cocok dengan hasil filter' : '27 kabupaten/kota · Klik area untuk membuka desa/kelurahan';
+    legend.replaceChildren();
+    const items = isVillage ? [['#c53d48', 'Ada KK belum berlistrik'], ['#2f8b63', 'Tidak tercatat KK belum berlistrik'], ['#b8c4ce', 'Data belum tersedia / tidak cocok']]
+        : [['#2f8b63', '0%'], ['#8fbd71', '>0–10%'], ['#f0c75b', '>10–25%'], ['#e88a4c', '>25–50%'], ['#c53d48', '>50%'], ['#b8c4ce', 'Belum ada angka']];
+    legend.append(textNode('strong', isVillage ? 'Kondisi desa:' : 'Desa dengan KK belum berlistrik:'));
+    for (const [color, label] of items) { const item = textNode('span', ''); const swatch = document.createElement('i'); swatch.className = 'area-swatch'; swatch.style.backgroundColor = color; item.append(swatch, document.createTextNode(label)); legend.append(item); }
+    if (!isVillage) legend.append(textNode('small', 'Persentase dari desa yang angkanya tersedia dalam hasil filter; bukan rasio elektrifikasi.', 'area-legend-note'));
+    if (isVillage && renderedDistrict !== data.district) {
+        renderedDistrict = data.district;
+        map.fitBounds(layer.getBounds(), { padding: [20, 20], animate: !reducedMotion.matches });
+        document.querySelector('#map-detail-title').textContent = data.districts[data.district]?.name ?? filters.elements.kabupaten.selectedOptions[0]?.textContent ?? 'Desa/kelurahan';
+        document.querySelector('[data-map-detail]').replaceChildren(textNode('p', 'Klik atau arahkan kursor ke area desa untuk membaca kondisi listriknya. Area abu-abu belum mempunyai data yang cocok dengan hasil filter.'));
+    } else if (!isVillage) renderedDistrict = null;
+    if (selectedId) { const record = Object.values(data.villages).find(r => r.id === selectedId); if (record) selectRegion(record); }
 }
 function renderList(list) {
     rows.replaceChildren();
@@ -196,15 +271,15 @@ function renderList(list) {
         const row = document.createElement('tr'); row.dataset.id = record.id;
         row.classList.toggle('is-selected', record.id === selectedId);
         const name = document.createElement('td'); name.append(textNode('strong', record.name), textNode('small', record.address));
-        const csv = document.createElement('td');
-        csv.append(textNode('span', familyCount(record.csv?.belum_listrik)));
+        const families = document.createElement('td');
+        families.append(textNode('span', familyCount(record.electricity.unserved_families)));
         const condition = document.createElement('td');
         condition.append(textNode('span', categories[record.category].label, `condition-label ${record.category}`));
         const location = textNode('td', record.location ? 'Referensi desa' : 'Belum tersedia');
         const action = document.createElement('td');
         const button = textNode('button', 'Lihat', 'button'); button.type = 'button'; button.setAttribute('aria-label', `Lihat ${record.name}`);
         button.addEventListener('click', () => selectRegion(record, true)); action.append(button);
-        row.append(name, csv, condition, location, action); rows.append(row);
+        row.append(name, families, condition, location, action); rows.append(row);
     });
     page = list.current_page; lastPage = list.last_page;
     document.querySelector('[data-map-list-count]').textContent = list.total ? `${(page - 1) * 15 + 1}–${Math.min(page * 15, list.total)} dari ${number(list.total)} wilayah` : '0 wilayah';
@@ -218,7 +293,7 @@ async function loadData() {
     if (disposed) return;
     dataAbort?.abort(); const abort = new AbortController(); dataAbort = abort;
     let timedOut = false;
-    const timeout = setTimeout(() => { timedOut = true; abort.abort(); }, 15000);
+    const timeout = setTimeout(() => { timedOut = true; abort.abort(); }, 30000);
     dataState.dataset.mapDataState = 'loading'; dataStatus.textContent = 'Memuat data wilayah…'; dataRetry.hidden = true;
     rows.setAttribute('aria-busy', 'true');
     document.querySelector('[data-map-prev]').disabled = true; document.querySelector('[data-map-next]').disabled = true;
@@ -229,28 +304,38 @@ async function loadData() {
         if (abort.signal.aborted) return;
         if (!result.summary || !Array.isArray(result.features) || !result.list) throw new Error('Respons data wilayah tidak lengkap.');
         if (!districtOptionsLoaded) {
-            for (const district of result.kabupaten) { const option = textNode('option', district.name); option.value = district.code; filters.elements.kabupaten.append(option); }
+            const boundaries = await geometry(null, abort.signal);
+            if (abort.signal.aborted) return;
+            const names = new Map(result.kabupaten.map(district => [district.code, district.name]));
+            const options = boundaries.features.map(feature => ({ code: feature.properties.code,
+                name: names.get(feature.properties.code) ?? (/^kota\s/i.test(feature.properties.name) ? feature.properties.name : 'Kabupaten ' + feature.properties.name) }));
+            options.sort((a, b) => a.name.localeCompare(b.name, 'id'));
+            for (const district of options) { const option = textNode('option', district.name); option.value = district.code; filters.elements.kabupaten.append(option); }
             districtOptionsLoaded = true;
             if (initial.get('kabupaten') && !filters.elements.kabupaten.value) {
                 const value = initial.get('kabupaten');
                 if ([...filters.elements.kabupaten.options].some(option => option.value === value)) { filters.elements.kabupaten.value = value; return loadData(); }
             }
         }
-        renderMarkers(result.features); renderList(result.list);
+        await renderAreas(result.areas, abort.signal);
+        if (abort.signal.aborted) return;
+        renderList(result.list);
+        document.querySelector('[data-map-period]').textContent = result.data.periods.length ? `Periode ${result.data.periods.join(', ')}` : 'Periode belum tersedia';
         const s = result.summary;
         dataStatus.textContent = s.total ? `${number(s.total)} wilayah sesuai filter · ${number(s.located)} lokasi tersedia · ${number(s.unlocated)} lokasi belum tersedia` : 'Tidak ada wilayah yang sesuai pencarian atau filter. Peta dasar tetap tampil.';
         dataState.dataset.mapDataState = 'ready';
-        document.querySelector('[data-map-list-caption]').textContent = filters.elements.location.value === 'missing' ? 'Wilayah tetap tercantum dalam daftar; lokasi pada peta belum tersedia.' : 'Daftar mengikuti filter. Perbesar peta untuk melihat lokasi desa.';
+        document.querySelector('[data-map-list-caption]').textContent = filters.elements.location.value === 'missing' ? 'Wilayah tetap tercantum dalam daftar; lokasi pada peta belum tersedia.' : 'Daftar mengikuti filter. Klik kabupaten pada peta untuk melihat area desa.';
         const url = new URLSearchParams({ q: filters.elements.q.value.trim(), condition: filters.elements.condition.value, kabupaten: filters.elements.kabupaten.value, location: filters.elements.location.value, page });
         history.replaceState(null, '', `${location.pathname}?${url}`);
     } catch (error) {
         if (dataAbort !== abort || disposed || (error.name === 'AbortError' && !timedOut)) return;
-        renderMarkers([]); rows.replaceChildren();
+        clearAreas(); rows.replaceChildren();
         document.querySelector('[data-map-empty]').hidden = true;
         document.querySelector('[data-map-list-count]').textContent = 'Jumlah hasil belum tersedia';
         document.querySelector('[data-map-page]').textContent = '—';
         dataStatus.textContent = `Gagal mengambil data wilayah. ${timedOut ? 'Waktu tunggu habis. Silakan coba lagi.' : error.message === 'Failed to fetch' ? 'Periksa koneksi lalu coba lagi.' : error.message}`;
-        dataState.dataset.mapDataState = 'error'; dataRetry.hidden = false;
+        dataState.dataset.mapDataState = 'error'; dataRetry.hidden = false; areaStatus.textContent = 'Lapisan wilayah belum tersedia. Coba lagi data.';
+        document.querySelector('[data-map-period]').textContent = 'Periode belum tersedia';
     } finally {
         clearTimeout(timeout);
         if (dataAbort === abort) rows.setAttribute('aria-busy', 'false');
@@ -259,14 +344,14 @@ async function loadData() {
 function filterChanged() {
     clearTimeout(debounce); dataAbort?.abort(); page = 1;
     selectedId = null; selection.clearLayers(); map.closePopup();
-    renderMarkers([]); rows.replaceChildren();
+    clearAreas(); rows.replaceChildren();
     dataState.dataset.mapDataState = 'loading'; dataStatus.textContent = 'Memuat data wilayah…';
     dataRetry.hidden = true;
     document.querySelector('[data-map-empty]').hidden = true;
     document.querySelector('[data-map-prev]').disabled = true;
     document.querySelector('[data-map-next]').disabled = true;
     document.querySelector('#map-detail-title').textContent = 'Pilih wilayah';
-    document.querySelector('[data-map-detail]').replaceChildren(textNode('p', 'Pilih penanda atau tombol “Lihat” pada daftar untuk membaca informasi wilayah.'));
+    document.querySelector('[data-map-detail]').replaceChildren(textNode('p', 'Klik area atau tombol “Lihat” pada daftar untuk membaca informasi wilayah.'));
     debounce = setTimeout(loadData, 300);
 }
 filters.addEventListener('submit', event => { event.preventDefault(); filterChanged(); clearTimeout(debounce); loadData(); });
@@ -283,12 +368,15 @@ document.querySelector('[data-map-prev]').addEventListener('click', () => { if (
 document.querySelector('[data-map-next]').addEventListener('click', () => { if (page < lastPage) { page++; loadData(); } });
 dataRetry.addEventListener('click', loadData);
 document.querySelector('[data-boundary-retry]').addEventListener('click', async () => { await loadBoundary(); loadData(); });
-reset.addEventListener('click', () => home(true), { signal: events.signal });
+reset.addEventListener('click', () => {
+    filters.elements.kabupaten.value = ''; initial.delete('kabupaten');
+    filterChanged(); clearTimeout(debounce); home(true); loadData();
+}, { signal: events.signal });
 retry.addEventListener('click', loadTiles, { signal: events.signal });
-map.on('moveend', () => { if (boundaryReady) { clearTimeout(debounce); debounce = setTimeout(loadData, 180); } });
+// Geometry covers the selected administrative area; panning does not refetch TiDB.
 function motionChanged() { map.stop(); map.options.zoomAnimation = !reducedMotion.matches; map.options.fadeAnimation = !reducedMotion.matches; }
 reducedMotion.addEventListener('change', motionChanged);
-const resize = new ResizeObserver(() => { map.invalidateSize({ animate: false, pan: false }); if (boundaryReady) map.setMinZoom(Math.max(5, map.getBoundsZoom(homeBounds, false, L.point(48, 48)))); });
+const resize = new ResizeObserver(() => { closeAreaTooltips(); map.invalidateSize({ animate: false, pan: false }); if (boundaryReady) map.setMinZoom(Math.max(5, map.getBoundsZoom(homeBounds, false, L.point(48, 48)))); });
 resize.observe(element);
 home(); loadTiles(); reset.disabled = false;
 loadBoundary().finally(() => loadData());
