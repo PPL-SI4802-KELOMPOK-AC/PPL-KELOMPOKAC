@@ -21,14 +21,15 @@
         <div class="map-toolbar">
             <div class="map-location"><span class="map-location__icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg></span><div><h2>Jawa Barat</h2><span>Area kabupaten/kota → desa/kelurahan</span></div></div>
             <button class="button button--return" type="button" data-map-reset disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg>Kembali ke Jawa Barat</button>
+            <button class="button" type="button" data-map-show-detail hidden>Lihat detail</button>
         </div>
         <div class="map-workspace">
             <div class="map-stage" data-boundary-state="loading">
                 <div id="region-map" data-region-map data-tile-url="{{ config('map.tile_url') }}" data-attribution="{{ config('map.attribution') }}" data-boundary-url="{{ asset('data/jawa-barat.geojson') }}" data-data-url="{{ route('wilayah.map.data') }}" data-areas-url="{{ asset('data/map-boundaries') }}" role="region" aria-label="Peta interaktif Jawa Barat" aria-describedby="map-help" aria-busy="true"></div>
                 <noscript><p class="noscript-message">Aktifkan JavaScript untuk membuka peta interaktif.</p></noscript>
             </div>
-            <aside class="map-detail" aria-labelledby="map-detail-title" aria-live="polite">
-                <p class="detail-eyebrow">INFORMASI WILAYAH</p><h2 id="map-detail-title" tabindex="-1">Pilih wilayah</h2>
+            <aside class="map-detail" data-map-detail-panel aria-labelledby="map-detail-title" aria-live="polite">
+                <div class="map-detail__heading"><p class="detail-eyebrow">INFORMASI WILAYAH</p><button class="map-detail__close" type="button" data-map-close-detail aria-label="Tutup detail wilayah" title="Tutup detail">×</button></div><h2 id="map-detail-title" tabindex="-1">Pilih wilayah</h2>
                 <div data-map-detail><p>Klik area atau tombol “Lihat” pada daftar untuk membaca informasi wilayah.</p><div class="detail-hint">Warna mengisi area batas wilayah. Klik kabupaten untuk melihat desa/kelurahan, lalu klik desa untuk membaca jumlah KK belum berlistrik.</div></div>
             </aside>
         </div>
