@@ -138,11 +138,6 @@ function initializeManager(root) {
             name.append(title, address);
             const count = document.createElement('td');
             count.textContent = region.jumlah_kk_terdampak === null ? 'Belum tersedia' : new Intl.NumberFormat('id-ID').format(region.jumlah_kk_terdampak);
-            if (region.sumber_data === 'Dataset acuan proyek; tahun 2024; satuan keluarga' && !region.data_per_tanggal
-                && ['ada_kk_belum_berlistrik', 'tidak_tercatat_kk_belum_berlistrik'].includes(region.kondisi_listrik)) {
-                const source = document.createElement('small'); source.className = 'row-address';
-                source.textContent = 'keluarga · 2024'; count.append(source);
-            }
             const condition = document.createElement('td');
             const badge = document.createElement('span');
             badge.className = 'condition-badge';

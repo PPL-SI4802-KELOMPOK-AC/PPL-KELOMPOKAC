@@ -19,8 +19,8 @@ class DashboardSummary
             'belum_berlistrik' => 'Kondisi dicatat belum berlistrik. Isian ini belum otomatis membuktikan verifikasi.',
             'akses_terbatas' => 'Kondisi dicatat memiliki akses listrik terbatas. Catatan verifikasi belum tersedia.',
             'sudah_berlistrik' => 'Kondisi dicatat sudah berlistrik. Ini bukan jumlah PLTS terpasang atau keluarga terlayani.',
-            'ada_kk_belum_berlistrik' => 'Data tersimpan mencatat keluarga belum berlistrik. Dataset acuan proyek menggunakan periode 2024. Desa juga dapat memiliki pengguna PLN.',
-            'tidak_tercatat_kk_belum_berlistrik' => 'Data tersimpan mencatat nol keluarga belum berlistrik. Dataset acuan proyek menggunakan periode 2024. Ini tidak membuktikan seluruh warga sudah berlistrik.',
+            'ada_kk_belum_berlistrik' => 'Data tersimpan mencatat keluarga belum berlistrik. Desa juga dapat memiliki pengguna PLN.',
+            'tidak_tercatat_kk_belum_berlistrik' => 'Data tersimpan mencatat nol keluarga belum berlistrik. Ini tidak membuktikan seluruh warga sudah berlistrik.',
         ];
         $colors = ['belum_berlistrik' => '#0d3f5b', 'akses_terbatas' => '#c18b00', 'sudah_berlistrik' => '#308378',
             'ada_kk_belum_berlistrik' => '#bb363b', 'tidak_tercatat_kk_belum_berlistrik' => '#226fa6'];

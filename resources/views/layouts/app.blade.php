@@ -26,7 +26,7 @@
             <a href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Beranda</a>
             <a href="{{ route('wilayah.map') }}" @if(request()->routeIs('wilayah.map')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg>Peta Wilayah</a>
         </nav>
-        <div class="sidebar-context"><strong>TerangDesa · Jawa Barat</strong><span>Energi untuk setiap desa</span><span>Referensi wilayah tahun 2024</span></div>
+        <div class="sidebar-context"><strong>TerangDesa · Jawa Barat</strong><span>Energi untuk setiap desa</span><span>Pendataan kebutuhan energi desa</span></div>
     </aside>
     <div class="workspace">
         <header class="site-header">

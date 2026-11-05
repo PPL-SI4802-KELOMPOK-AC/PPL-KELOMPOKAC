@@ -1,176 +1,163 @@
-# Peta Jawa Barat: sumber dan pengolahan
+# Peta wilayah berbasis TiDB
 
-Finalisasi 3 November 2026 menghubungkan peta dengan MySQL `terangdesa` dan dataset
-2024. Pada 4 November, pengguna meminta data yang sama ditampilkan di pengelolaan:
-perintah sinkronisasi terpisah mengisi jumlah keluarga dan kondisi yang masih NULL.
-Tidak ada migrasi, tabel/kolom baru, pengosongan tabel, atau perubahan koordinat.
+Pembaruan 5 November 2026 memakai tabel online `terangdesa.wilayah` sebagai sumber
+seluruh data wilayah pada peta. Endpoint mempertahankan akses publik yang sudah ada.
+Pengelolaan tetap memerlukan akun Pemerintah.
 
-## Sinkronisasi pengelolaan wilayah — 4 November 2026
+## Data wilayah
 
-`php artisan wilayah:sync-csv` menghasilkan preview per kode; `--apply` menerapkan
-ke referensi yang jumlah dan kondisinya masih NULL. Periode hanya 2024, kode hanya
-Kemendagri yang cocok, tanpa pencocokan nama. Sebanyak **5.311 baris diperbarui**:
-`jumlah_kk_terdampak` memakai jumlah keluarga belum berlistrik, kondisi bernilai
-`ada_kk_belum_berlistrik` (1.197) atau `tidak_tercatat_kk_belum_berlistrik` (4.114).
-PLN tetap terpisah; jumlah warga, koordinat, `created_by`, dan tanggal tidak diisi.
-Tanggal lengkap tidak ditebak dari tahun sumber. NULL angka sumber tidak menjadi nol.
+`MapData` membaca model Wilayah melalui koneksi default Laravel. Pencarian dan
+filter diterapkan pada snapshot baris database yang sama untuk daftar, ringkasan,
+dan penanda. Daftar dipaginasi 15 baris. Koordinat viewport hanya membatasi penanda,
+sehingga wilayah lain tetap dapat dicari pada daftar.
 
-Nilai sebelum/sesudah tersimpan pada audit lokal
-`storage/app/imports/wilayah-2024-apply-20261104-064051-08b525f3.json`.
-Audit disimpan sebelum commit; kegagalan penulisan audit menggagalkan transaksi.
-Sumber lama yang persis dikenali sebagai impor 2024 diperbarui menjadi keterangan
-dataset acuan proyek. Sumber lain, catatan bertanggal, pemilik manual, dan isian
-parsial tidak diubah. Impor bersifat idempoten, termasuk ketika data hasil impor
-kemudian sengaja dikosongkan oleh pengelola. Tidak ada perubahan akun/autentikasi.
-Verifikasi akhir: 0 perbedaan jumlah/kondisi terhadap CSV, 5.311 jumlah terisi,
-5.311 kondisi terisi; jumlah warga, koordinat database, dan tanggal tetap NULL.
-Preview ulang menghasilkan 0 perubahan. Pengujian: 37 tes PHP dan 20 tes browser
-lulus, satu uji tile eksternal opsional dilewati. Tidak ada fixture yang tertinggal.
-
-## Audit CSV dan pencocokan
-
-Sumber lokal: `D:/Semester 5/PPL/Dataset/Dataset_Wilayah_2024_Bersih.csv`.
-Kolom `kemendagri_kode_desa_kelurahan` dicocokkan secara persis dengan
-`wilayah.kode_referensi` berbentuk `32.xx.xx.xxxx`. Kode BPS tetap merupakan atribut
-berbeda; tidak dicocokkan sebagai kode Kemendagri. Data tahun selain 2024 dan provinsi
-selain kode 32 dilewati. Kode ganda dilaporkan dan tidak dipilih/ditambahkan sembarang;
-cache aktif tidak diganti bila input mengandung kode ganda atau tidak ada baris valid.
-
-| Pemeriksaan | Hasil lokal |
-| --- | ---: |
-| Baris CSV periode 2024, kode provinsi 32 | 5.311 |
-| Cocok dengan kode pada MySQL | 5.311 |
-| CSV tidak cocok / kode duplikat | 0 / 0 |
-| Kolom berlabel belum listrik bernilai positif | 1.197 |
-| Kolom berlabel belum listrik bernilai nol | 4.114 |
-| Status sumber belum diverifikasi | 5.311 |
-| Kabupaten/kota yang tercakup dalam CSV | 19 |
-| Perubahan database dari persiapan/pemuatan peta | 0 |
-| Pengisian referensi kosong melalui sinkronisasi 4 November | 5.311 |
-
-Kedua CSV asli (`Data Desa Belum Teraliri Listrik.csv` dan `Data Desa Sumber Listrik
-PLN.csv`) juga dibaca dan dibandingkan berdasarkan kode Kemendagri + tahun 2024.
-Masing-masing memiliki 5.311 kode unik tahun 2024, tanpa baris hilang atau perbedaan
-angka terhadap kolom terkait pada CSV bersih. Tahun lain serta rekap kabupaten pada
-CSV lain tidak digabung atau dijumlahkan.
-
-Pengguna menyetujui dataset sebagai acuan proyek untuk kondisi tahun 2024.
-Antarmuka menampilkan **Sumber: dataset acuan proyek • Tahun 2024**. Persetujuan
-tersebut bukan survei lapangan atau verifikasi resmi PLN/ESDM. Status asal sumber
-dipertahankan pada artefak untuk audit; identitas verifikator tidak dibuat.
-Jumlah keluarga belum berlistrik > 0 menjadi kategori `has_unserved`, tepat 0 menjadi
-`no_unserved`, dan NULL/tidak cocok menjadi `unavailable`. Data Pemerintah yang lebih
-baru tidak menentukan kategori dataset 2024 dan tetap ditampilkan terpisah.
-PLN bukan KK terdampak; tidak ada pengurangan angka PLN untuk memperoleh jumlah
-keluarga tanpa listrik. Desa dapat mempunyai pengguna PLN dan keluarga belum
-berlistrik sekaligus. Angka nol bukan bukti seluruh desa sudah berlistrik.
-Dataset tidak diklaim mencakup seluruh desa atau seluruh kabupaten/kota di provinsi.
-
-## Sumber geografis
-
-1. [BIG: Batas Wilayah Kelurahan/Desa 1:10.000](https://geoservices.big.go.id/rbi/rest/services/BATASWILAYAH/Administrasi_AR_KelDesa_10K/MapServer)
-   dan [metadata layer](https://geoservices.big.go.id/rbi/rest/services/BATASWILAYAH/Administrasi_AR_KelDesa_10K/MapServer/0):
-   edisi Oktober 2020, kode `KDEPUM` (Kemendagri), sistem koordinat WGS84. Metadata
-   layanan mencantumkan kredit Badan Informasi Geospasial dan kemampuan publik
-   `Map,Query,Data`. Keterangan layanan mengakui batas yang belum definitif, desa yang
-   belum terwakili, serta kemungkinan perbedaan segmen batas. Tidak ada lisensi terbuka
-   spesifik yang dinyatakan pada metadata layer yang diperiksa; implementasi memakai
-   layanan publik untuk referensi kartografis dengan kredit BIG, tanpa mengklaim batas
-   resmi atau lisensi CC untuk data BIG. Metadata asli disimpan bersama snapshot lokal.
-2. [geoBoundaries](https://www.geoboundaries.org/), API
-   `https://www.geoboundaries.org/api/current/gbOpen/IDN/ADM1/`: batas provinsi dari
-   OpenStreetMap/Wambacher, tahun representasi 2017, boundary ID `IDN-ADM1-65028918`.
-   File disederhanakan pada snapshot commit `9469f09`; metadata menyatakan
-   [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/). Nama Jawa Barat pada
-   sumber adalah `West Java`. Hanya fitur tersebut disertakan, dengan metadata sumber
-   dan atribusi. Batas referensi lama/disederhanakan dipakai untuk tampilan dan validasi
-   cakupan; tidak dipakai untuk keputusan atau penetapan batas hukum.
-3. Peta dasar [OpenStreetMap](https://www.openstreetmap.org/copyright), melalui tile
-   publik standar, tanpa bulk download atau prefetch. Atribusi selalu terlihat dan
-   pengujian otomatis normal memakai tile fixture untuk mengurangi beban layanan.
-
-Urutan lokasi: koordinat referensi yang tersimpan di database, lalu titik dari poligon
-BIG berkode sama. Untuk data manual yang tidak lengkap/tidak valid/di luar provinsi,
-sistem menampilkan alasannya dan tidak diam-diam menggantinya dengan sumber lain.
-Skema belum mempunyai atribut verifikasi/jenis lokasi khusus rumah; seluruh titik
-dilabeli **Lokasi referensi desa**, tanpa klaim lokasi rumah atau lokasi pemasangan.
-
-Titik BIG dibuat menggunakan irisan horizontal di bagian dalam poligon. Lubang dan
-MultiPolygon diperhitungkan, kemudian titik diuji terhadap poligon desa dan batas
-provinsi. Titik rata-rata yang mungkin jatuh di laut tidak dipakai. Penyederhanaan
-poligon layanan maksimum 0,0001 derajat ditujukan untuk referensi tampilan, bukan survei.
-Koordinat BIG hanya disimpan pada artefak pendukung, tidak ditulis ke `wilayah`.
-
-Layanan BIG mengembalikan 5.957 fitur Jawa Barat. Sebanyak 5.951 titik lolos pemeriksaan
-geometri/batas referensi; 6 tidak dipakai. Untuk 5.311 wilayah dalam database,
-**5.304 berhasil dipetakan** dan **7 tidak memiliki pasangan lokasi valid**:
-
-| Kode Kemendagri | Wilayah |
+| Nilai API | Kolom atau sumber TiDB |
 | --- | --- |
-| 32.07.17.2010 | CINTAJAYA |
-| 32.07.17.2011 | CINTARATU |
-| 32.07.17.2013 | TAMBAKREJA |
-| 32.09.39.2001 | SAMBENG |
-| 32.09.39.2002 | SIRNABAYA |
-| 32.79.04.2001 | LANGENSARI |
-| 32.79.04.2003 | WARINGINSARI |
+| Identitas, kode, nama, alamat | id, kode_referensi, nama_wilayah, alamat_deskriptif |
+| Keluarga belum berlistrik | jumlah_kk_terdampak |
+| Kondisi manual | kondisi_listrik |
+| Jumlah pengguna PLN | NULL karena kolom belum tersedia |
+| Sumber | sumber_data |
+| Periode | Tahun data_per_tanggal, kemudian keterangan periode/tahun pada sumber |
+| Koordinat | latitude dan longitude |
+| Kabupaten/kecamatan | Komponen eksplisit pada alamat lengkap tersimpan |
 
-Kode yang belum cocok tidak ditebak menggunakan nama desa, BPS, atau koordinat
-kabupaten. Perbedaan versi administrasi merupakan keterbatasan yang belum diselesaikan.
-Wilayah tersebut tetap dapat dicari dan dibaca melalui filter “Lokasi belum tersedia”.
+Kode kabupaten berasal dari awalan kode desa Kemendagri. Nama administratif hanya
+dipisahkan bila alamat berakhir dengan komponen kabupaten/kota dan `JAWA BARAT` yang
+jelas. Alamat lain tetap ditampilkan utuh. Data yang tidak tersedia tetap NULL.
+Tidak ada pencocokan ke CSV, layanan desa, JSON indikator, atau titik lokal lain
+saat halaman dibuka. Pengayaan koordinat sekali jalan dijelaskan di bawah.
 
-## Alur runtime dan pembaruan
+Kategori desa ditentukan jumlah KK. Lebih dari nol memakai merah, nol
+memakai hijau, dan NULL memakai abu-abu. Pengguna PLN tidak dipakai
+untuk menyimpulkan seluruh warga sudah berlistrik. Kondisi manual terpisah dari
+kategori jumlah keluarga. Tahun dan sumber ditampilkan sesuai setiap catatan.
 
-- `map:prepare --dry-run` membaca CSV dan MySQL, melaporkan audit tanpa menulis apa pun.
-  `map:prepare` menyimpan artefak CSV ke `storage/app/map/dataset-2024.json` secara
-  atomik. Ulangi perintah ini setelah memperbarui CSV; data browser tidak membaca CSV.
-- `map:geography --refresh` mengambil metadata provinsi serta 15 batch poligon BIG (400 ID per
-  batch, bukan 5.311 permintaan geocoding). Tanpa `--refresh`, snapshot batch lokal memungkinkan resume.
-  Artefak hasil menyimpan URL sumber, waktu pengambilan, edisi, kode, dan feature ID.
-- `MapData` meng-cache artefak berdasarkan hash konten. Data Pemerintah dibaca langsung
-  dari MySQL pada setiap permintaan, sehingga edit/hapus terlihat pada peta berikutnya.
-- Endpoint mengelompokkan titik dalam grid 54 piksel menurut zoom dan viewport.
-  Penanda kelompok memakai lokasi salah satu anggota terdekat pusat kelompok yang
-  valid, bukan titik rata-rata di luar daratan. Di zoom awal sekitar 50 kelompok/satuan
-  mewakili ribuan desa. Jumlah keluarga tidak dijadikan jumlah penanda.
-- Daftar dipaginasi 15 baris dan tidak dibatasi viewport. Pencarian/filter berlaku
-  bersama untuk daftar, ringkasan, dan marker; perubahan filter mengembalikan halaman
-  ke 1, membatalkan request lama, dan menghapus penanda kedaluwarsa.
-- Respons membedakan kondisi Pemerintah yang diisi melalui pengelolaan, kondisi dataset,
-  NULL, serta jenis/sumber lokasi. Atribut `created_by`, identitas akun, dan konfigurasi
-  MySQL tidak disertakan. Error data, error batas, error tile, serta hasil kosong berbeda.
-- Filter `condition=all|has_unserved|no_unserved`, pencarian, kabupaten, dan lokasi
-  diterapkan bersama. Daftar kabupaten berasal dari data yang cocok dengan wilayah.
-  NULL/tidak cocok hanya muncul pada Semua kondisi. Reset menghapus seluruh filter,
-  pilihan detail, serta pagination; tombol Kembali ke Jawa Barat mengatur viewport.
-- Merah/simbol ! dan biru/simbol 0 digunakan pada penanda desa; NULL memakai abu-abu/?.
-  Kelompok berwarna kategori jika semua anggotanya sama; kelompok campuran navy
-  merinci jumlah desa setiap kategori pada popup. Simbol dan teks membedakan kategori
-  selain warna. Jumlah kelompok adalah jumlah lokasi desa, bukan keluarga.
-- Error screenshot berasal dari MySQL yang berhenti (koneksi 3306 ditolak).
-  Menyalakan MySQL lokal memulihkan endpoint tanpa migrasi atau perubahan data.
+## Koordinat dan geografi
 
-## Pemeriksaan
+Kedua koordinat harus tersedia, numerik, sesuai rentang global, dan berada pada
+geometri batas referensi Jawa Barat. Pasangan tidak valid tidak menghasilkan titik.
+Wilayah tanpa lokasi tetap dapat dibaca melalui daftar. Penanda merupakan lokasi
+referensi desa, bukan rumah warga atau titik calon pemasangan PLTS.
 
-Jalankan pengujian dengan flag `PBI01_MYSQL_TESTS=1` sesuai README. Pengujian CSV dan
-geometri tidak memerlukan MySQL; pengujian integrasi memakai transaksi/fixture baru,
-tanpa memigrasi atau mengubah data referensi. Pengujian mencakup kecocokan angka asli,
-kode BPS/Kemendagri, periode, duplikasi, NULL/0, geometri berlubang/multipoligon,
-clustering/viewport, prioritas koordinat, CRUD Pemerintah yang langsung tercermin,
-otorisasi/CSRF/FK, rate limiter terpisah, filter/detail/pagination/reload dan seluler.
+Tampilan terbaru menggunakan poligon administratif, tanpa bulatan penanda.
+Koordinat lama tetap tersimpan untuk kebutuhan aplikasi, tetapi tidak menentukan
+keberadaan atau warna poligon. Field API `features` tetap tersedia demi kompatibilitas;
+halaman peta menggunakan field `areas`.
 
-Chrome juga dipakai untuk pemeriksaan dengan tile OpenStreetMap asli. Pemeriksaan
-seluler merupakan emulasi, bukan perangkat fisik. Belum ada verifikasi lapangan atas
-indikator listrik maupun titik referensi, dan tidak ada lokasi rumah/PLTS yang dibuat.
+Geografi yang tetap diperlukan:
 
-Hasil finalisasi 3 November 2026: **34 pengujian PHP lulus (354 assertions),
-19 pengujian browser lulus**; satu uji tile eksternal pada suite normal dilewati
-sesuai opt-in. Pengujian mencakup kondisi > 0 / = 0 / NULL / tidak cocok, filter
-gabungan kabupaten dan pencarian, reset, detail, loading/error/kosong, mobile
-390/320px, serta regresi CRUD dan autentikasi. Fixture NULL pada pengujian browser
-hanya mengganti respons pengujian; data referensi tidak diubah. Build Vite berhasil.
-Pemeriksaan visual terpisah memakai tile OpenStreetMap asli: 28 respons tile berhasil,
-tidak ada error JavaScript, dan tidak ada overflow pada viewport seluler baru.
-Screenshot lokal: `test-results/peta-final-desktop.png`, `peta-final-positive.png`,
-dan `peta-final-mobile.png` (diabaikan Git). Akhir pengujian: tabel wilayah tetap
-5.311 baris; tidak ada akun `@example.test` atau wilayah fixture yang tertinggal.
+- `public/data/jawa-barat.geojson`, batas provinsi dari geoBoundaries/OSM/Wambacher,
+  representasi 2017, ODbL 1.0. Digunakan untuk outline, mask, dan validasi cakupan.
+- Tile OpenStreetMap dan atribusinya, serta Leaflet untuk navigasi/zoom/keyboard.
+- `map:geography`, khusus pembaruan aset batas provinsi.
+
+Sumber dan lisensi:
+
+- <https://www.geoboundaries.org/>
+- <https://opendatacommons.org/licenses/odbl/1-0/>
+- <https://www.openstreetmap.org/copyright>
+
+## Pembaruan dan error
+
+Hasil query wilayah tidak di-cache. CRUD Pemerintah, dashboard, dan peta membaca
+database yang sama. Hanya geometri batas statis yang di-cache berdasarkan hash file.
+Request lama dibatalkan ketika filter berubah. Loading berakhir pada sukses, error,
+atau timeout. Error data tidak diubah menjadi hasil kosong. Retry data, batas, dan
+tile ditangani masing-masing. Reset membersihkan filter dan pilihan detail.
+
+Pembaca CSV, JSON indikator, command persiapan/impor, serta fallback titik BIG sudah
+dihapus bersama pengujian khusus alur tersebut. Cache indikator dan snapshot titik
+lama dibersihkan. CSV sumber asli di folder dataset pengguna dipertahankan sebagai
+arsip. Tidak ada fallback database lokal, pembuatan tabel, migrasi, seed, atau impor
+data indikator dalam pekerjaan ini. Pengayaan koordinat yang kemudian diminta
+pengguna merupakan proses terpisah, tanpa mengaktifkan kembali fallback lokal.
+
+## Pemeriksaan aktual
+
+Koneksi PDO mengarah ke TiDB Cloud v8.5.3-serverless dan database `terangdesa`, memakai
+TLS 1.3 / TLS_AES_128_GCM_SHA256 dengan verifikasi sertifikat server aktif. Database
+memiliki 5.311 wilayah dan satu akun operasional saat pemeriksaan awal.
+
+Jumlah KK memuat 1.197 desa bernilai positif dan 4.114 bernilai nol. Pada pemeriksaan
+awal seluruh koordinat, kondisi manual, serta tanggal pengamatan masih NULL.
+Periode 2024 terbaca dari
+keterangan sumber yang tersimpan. Kolom PLN belum tersedia.
+
+Uji backend memakai fixture transaksi untuk koordinat, NULL/0, filter gabungan,
+pagination, pengelompokan, pembaruan Pemerintah, dan kegagalan query. Uji browser
+memeriksa sumber online dan simpan/baca lintas daftar, dashboard, serta penanda peta.
+Data uji dibersihkan setelah pemeriksaan dan checksum data asli dibandingkan kembali.
+
+## Pengayaan titik referensi desa — 5 November 2026
+
+Atas permintaan pengguna, 5.227 pasangan koordinat kosong di TiDB diisi dari titik
+di dalam poligon desa BIG skala 1:10.000 (Oktober 2020), snapshot 2 November 2026.
+Atribut administratif diverifikasi kembali melalui layanan resmi BIG pada hari
+pengayaan. Kode KDEPUM, FID, dan nama sumber snapshot diperiksa sebelum pencocokan
+kode desa, nama desa, kecamatan, dan kabupaten/kota dengan catatan TiDB. Kabupaten
+tanpa awalan pada sumber diperlakukan sebagai kabupaten; Kota tetap dibedakan.
+Tidak ada pencocokan samar, pengacakan, atau penggunaan titik pusat kabupaten.
+
+Sebanyak 77 wilayah memiliki perbedaan nama administratif dan tujuh tidak mempunyai
+kode referensi unik yang cocok. Sebanyak 84 wilayah ini tetap tanpa koordinat.
+Jumlah KK, kondisi, sumber indikator, tanggal pengamatan, ID, relasi, dan skema
+tidak diubah. Koordinat yang sudah terisi, termasuk pasangan parsial, tidak ditimpa.
+
+Perintah pemeliharaan menerima berkas referensi terverifikasi secara eksplisit:
+
+```sh
+php artisan map:fill-village-locations storage/app/map-reference/verified-villages.json
+php artisan map:fill-village-locations storage/app/map-reference/verified-villages.json --apply
+```
+
+Default adalah pratinjau. Penerapan menggunakan transaksi, penguncian, pemeriksaan
+nilai sebelum/sesudah, serta pencadangan baris dan rencana pada
+`storage/app/map-reference/<timestamp>/`. Berkas ini merupakan audit pemeliharaan,
+bukan sumber runtime peta. Perintah dapat diulang tanpa menimpa koordinat.
+Teman yang terhubung ke TiDB yang sama langsung membaca titik hasil pengayaan.
+
+Sumber: [BIG — Batas Wilayah Kelurahan/Desa](https://geoservices.big.go.id/rbi/rest/services/BATASWILAYAH/Administrasi_AR_KelDesa_10K/MapServer/0).
+
+## Peta area kabupaten → desa
+
+Sesuai koreksi pengguna, peta sekarang mengisi bentuk wilayah administratif.
+Tampilan awal memiliki 27 poligon kabupaten/kota. Klik area atau pilih kabupaten
+untuk memuat poligon desa/kelurahan kabupaten itu; tombol Kembali ke Jawa Barat
+mengembalikan tingkat kabupaten. Hover memperlihatkan ringkasan, klik desa
+memperlihatkan detail, dan Enter/Spasi pada area mendukung navigasi keyboard.
+
+Warna kabupaten mengikuti proporsi desa dengan jumlah KK belum berlistrik > 0
+dibagi jumlah desa dengan angka tersedia, berdasarkan hasil filter: hijau 0%,
+hijau muda >0–10%, kuning >10–25%, oranye >25–50%, merah >50%. Angka ini bukan
+rasio elektrifikasi maupun persentase keluarga. Catatan NULL dikecualikan dari
+penyebut dan tetap dihitung sebagai data belum tersedia. Jika semua NULL,
+persentase dan total KK tetap NULL serta area abu-abu.
+
+Pada tingkat desa, merah berarti ada KK belum berlistrik, hijau berarti angka
+tersimpan nol, dan abu-abu berarti NULL atau tidak ada kecocokan data dalam hasil
+filter. Kode dan nama desa, kecamatan, serta kabupaten diperiksa bersama agar
+desa bernama sama tidak tertukar. Catatan tanpa titik dapat memiliki poligon;
+catatan tanpa poligon tetap dapat dibaca pada daftar.
+
+`public/data/map-boundaries/` menyimpan geografi BIG saja: 27 batas kabupaten/kota
+skala 1:50.000, 5.957 batas desa/kelurahan skala 1:10.000 yang dipisahkan per
+kabupaten, dan indeks administratif. Atribut KK, tahun indikator, dan kondisi
+tidak disimpan dalam aset ini. Semua angka, warna, dan detail berasal dari TiDB
+melalui `MapAreas`; query data tidak di-cache. Hanya bentuk geografis statis
+yang di-cache dan tiap kabupaten dimuat sesuai kebutuhan. Pan/zoom tidak perlu
+mengulang query database.
+
+Pembaharuan geografi: `php artisan map:administrative-boundaries`. Perintah ini
+hanya membaca layanan BIG dan menulis aset geografis, tanpa mutasi database.
+Data disederhanakan untuk tampilan dan bukan penetapan batas hukum.
+
+Sumber kabupaten: [BIG — Batas Wilayah Kabupaten/Kota](https://geoservices.big.go.id/rbi/rest/services/BATASWILAYAH/Administrasi_AR_KabKota_50K/MapServer/0).
+
+Verifikasi pembaruan area: 44 tes backend lulus; 21 skenario browser lulus setelah
+dua pemeriksaan lama disesuaikan dan diuji ulang, satu uji tile eksternal opsional
+dilewati. Hover diuji pada posisi di dalam poligon (pusat bounding box Kabupaten
+Bogor terletak di Kota Bogor). Navigasi keyboard, data NULL, filter, kabupaten tanpa
+catatan, detail desa, simpan/edit lintas halaman, serta tampilan 390/320px diperiksa.
+Jumlah akhir tetap 5.311 wilayah dan satu pengguna, tanpa fixture tersisa. Laporan:
+`storage/app/map-reference/area-verification.json`.

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 
 test.describe('PBI-01 dengan MySQL', () => {
+    test.setTimeout(90000);
     test.skip(process.env.PBI01_MYSQL_TESTS !== '1', 'Opt-in data uji tersendiri pada database TerangDesa.');
     let fixture;
     test.beforeAll(() => {
@@ -130,29 +131,80 @@ test.describe('PBI-01 dengan MySQL', () => {
         await expect(page).toHaveURL(/\/login$/);
     });
 
-    test('data acuan CSV tersimpan tampil sebagai nol atau positif dan terbaca saat edit', async ({ page }) => {
+    test('jumlah dan sumber online terbaca pada daftar serta formulir edit', async ({ page }) => {
+        const expected = (await (await page.request.get('/pemerintah/wilayah/data?q=MALASARI%2C%20NANGGUNG')).json()).data[0];
         await page.getByLabel('Cari wilayah atau alamat').fill('MALASARI, NANGGUNG');
         await expect(page.locator('[data-rows] tr')).toHaveCount(1);
         const row = page.locator('[data-rows] tr');
-        await expect(row).toContainText('Tidak tercatat KK belum berlistrik');
-        await expect(row.locator('td').nth(1)).toHaveText('0keluarga · 2024');
+        await expect(row.locator('td').nth(1)).toHaveText(String(expected.jumlah_kk_terdampak));
         await row.getByRole('button', { name: 'Edit MALASARI', exact: true }).click();
         await expect(page.getByLabel('Jumlah KK terdampak')).toHaveValue('0');
-        await expect(page.getByLabel('Kondisi elektrifikasi')).toHaveValue('tidak_tercatat_kk_belum_berlistrik');
+        await expect(page.getByLabel('Kondisi elektrifikasi')).toHaveValue(expected.kondisi_listrik ?? '');
         await page.locator('.supporting-info summary').click();
-        await expect(page.getByLabel('Sumber data', { exact: true })).toHaveValue('Dataset acuan proyek; tahun 2024; satuan keluarga');
+        await expect(page.getByLabel('Sumber data', { exact: true })).toHaveValue(expected.sumber_data);
         await expect(page.getByLabel('Tanggal pengamatan')).toHaveValue('');
         await page.getByRole('button', { name: 'Batal', exact: true }).click();
-        await page.getByLabel('Kondisi listrik', { exact: true }).selectOption('ada_kk_belum_berlistrik');
         await page.getByLabel('Cari wilayah atau alamat').fill('ANJUN, PLERED');
         await expect(page.locator('[data-rows] tr')).toHaveCount(1);
-        await expect(page.locator('[data-rows] tr')).toContainText('Ada KK belum berlistrik');
-        await expect(page.locator('[data-rows] tr td').nth(1)).toHaveText('6keluarga · 2024');
-        await page.screenshot({ path: 'test-results/wilayah-csv-2024.png', fullPage: true });
+        await expect(page.locator('[data-rows] tr td').nth(1)).toHaveText('6');
+        await page.screenshot({ path: 'test-results/wilayah-online.png', fullPage: true });
         for (const width of [390, 320]) {
             await page.setViewportSize({ width, height: 844 });
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         }
+    });
+
+    test('simpan melalui Pemerintah memperbarui daftar dashboard serta daftar dan detail peta', async ({ page }) => {
+        const baseline = (await (await page.request.get('/dashboard/data')).json()).metrics;
+        const name = `${fixture.prefix} Peta`;
+        await page.getByRole('button', { name: 'Tambah wilayah', exact: true }).click();
+        await page.getByLabel('Nama wilayah', { exact: false }).fill(name);
+        await page.getByLabel('Kode referensi', { exact: true }).fill(`${fixture.prefix}-map`);
+        await page.getByLabel('Tingkat wilayah').fill('desa_kelurahan');
+        await page.getByLabel('Alamat lengkap').fill('Desa Uji, KECAMATAN UJI, KABUPATEN UJI, JAWA BARAT');
+        await page.getByLabel('Lintang', { exact: true }).fill('-6,9');
+        await page.getByLabel('Bujur', { exact: true }).fill('107,6');
+        await page.getByLabel('Jumlah KK terdampak').fill('23');
+        await page.getByLabel('Kondisi elektrifikasi').selectOption('akses_terbatas');
+        await page.locator('.supporting-info summary').click();
+        await page.getByLabel('Sumber data', { exact: true }).fill('Uji browser TiDB');
+        await page.getByLabel('Tanggal pengamatan').fill('2026-11-05');
+        await page.getByRole('button', { name: 'Simpan data' }).click();
+        await expect(page.locator('[data-notice]')).toContainText('berhasil ditambahkan');
+        await page.goto('/');
+        await expect(page.locator('[data-chart-state]')).toHaveAttribute('data-chart-state', 'ready');
+        await expect(page.locator('[data-metric=condition_filled]')).toHaveText(new Intl.NumberFormat('id-ID').format(baseline.condition_filled + 1));
+        await expect(page.locator('[data-metric=valid_coordinates]')).toHaveText(new Intl.NumberFormat('id-ID').format(baseline.valid_coordinates + 1));
+        const mapUrl = `/peta-wilayah?q=${encodeURIComponent(name)}`;
+        await page.goto(mapUrl);
+        await expect(page.locator('[data-map-data-state]')).toHaveAttribute('data-map-data-state', 'ready');
+        await expect(page.locator('[data-map-rows]')).toContainText('Ada KK belum berlistrik');
+        await page.getByRole('button', { name: 'Lihat ' + name, exact: true }).click();
+        await expect(page.locator('#map-detail-title')).toHaveText(name);
+        await expect(page.locator('[data-map-detail]')).toContainText('23 keluarga');
+        await expect(page.locator('[data-map-detail]')).toContainText('Tahun data2026');
+        await expect(page.locator('[data-map-detail]')).toContainText('Uji browser TiDB');
+        await page.goto(`/pemerintah/wilayah?q=${encodeURIComponent(name)}`);
+        await page.getByRole('button', { name: `Edit ${name}`, exact: true }).click();
+        await expect(page.getByLabel('Jumlah KK terdampak')).toHaveValue('23');
+        await page.getByLabel('Jumlah KK terdampak').fill('0');
+        await page.getByLabel('Kondisi elektrifikasi').selectOption('');
+        await page.getByRole('button', { name: 'Simpan data' }).click();
+        await expect(page.locator('[data-notice]')).toContainText('berhasil disimpan');
+        await expect(page.locator('[data-rows] tr td').nth(1)).toHaveText('0');
+        await page.goto('/');
+        await expect(page.locator('[data-chart-state]')).toHaveAttribute('data-chart-state', 'ready');
+        await expect(page.locator('[data-metric=condition_filled]')).toHaveText(new Intl.NumberFormat('id-ID').format(baseline.condition_filled));
+        await page.goto(mapUrl);
+        await expect(page.locator('[data-map-data-state]')).toHaveAttribute('data-map-data-state', 'ready');
+        await expect(page.locator('[data-map-rows]')).toContainText('Tidak tercatat KK belum berlistrik');
+        await page.getByRole('button', { name: 'Lihat ' + name, exact: true }).click();
+        await expect(page.locator('[data-map-detail]')).toContainText('0 keluarga');
+        await page.screenshot({ path: 'test-results/tidb-map-update.png', fullPage: true });
+        await page.goto(`/pemerintah/wilayah?q=${encodeURIComponent(name)}`);
+        page.once('dialog', dialog => dialog.accept());
+        await page.getByRole('button', { name: `Hapus ${name}`, exact: true }).click();
+        await expect(page.locator('[data-notice]')).toContainText('berhasil dihapus');
     });
 
     test('desktop dan seluler, drawer keyboard, tanpa overflow dan tanpa animasi dekoratif', async ({ page }) => {
