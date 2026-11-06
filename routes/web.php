@@ -26,6 +26,7 @@ Route::prefix('pengajuan/lokasi')->name('pengajuan.')->middleware(RequireMasyara
     Route::get('/', [LokasiPengajuanController::class, 'edit'])->name('lokasi');
     Route::get('/administrasi', [LokasiPengajuanController::class, 'administration'])->middleware('throttle:map-data')->name('lokasi.administrasi');
     Route::post('/', [LokasiPengajuanController::class, 'store'])->middleware('throttle:location-save')->name('lokasi.store');
+    Route::get('/bukti', [BuktiPengajuanController::class, 'edit'])->name('bukti');
     Route::post('/bukti', [BuktiPengajuanController::class, 'store'])->middleware('throttle:location-save')->name('bukti.store');
     Route::get('/bukti/{bukti}', [BuktiPengajuanController::class, 'show'])->whereNumber('bukti')->name('bukti.show');
 });
