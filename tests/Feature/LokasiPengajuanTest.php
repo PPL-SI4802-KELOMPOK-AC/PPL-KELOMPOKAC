@@ -185,7 +185,7 @@ class LokasiPengajuanTest extends TestCase
         $photos = [$this->photo('panel-lapuk.png', 100), $this->photo('atap.png', 120)];
 
         $this->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id, 'photos' => $photos])
-            ->assertRedirect('/pengajuan/lokasi')->assertSessionHas('evidence_saved', '2 foto bukti berhasil disimpan.');
+            ->assertRedirect('/pengajuan/lokasi/bukti')->assertSessionHas('evidence_saved', '2 foto bukti berhasil disimpan.');
 
         $this->assertDatabaseCount('bukti_pengajuan', 2);
         foreach ($draft->fresh()->bukti as $evidence) {
@@ -194,7 +194,55 @@ class LokasiPengajuanTest extends TestCase
             $this->assertGreaterThan(0, $evidence->ukuran_byte);
             Storage::disk('r2')->assertExists($evidence->path_file);
         }
-        $this->get('/pengajuan/lokasi')->assertOk()->assertSee('panel-lapuk.png')->assertSee('atap.png');
+        $this->get('/pengajuan/lokasi/bukti')->assertOk()->assertSee('panel-lapuk.png')->assertSee('atap.png');
+    }
+
+    public function test_location_and_evidence_are_separate_steps_with_a_saved_location_required(): void
+    {
+        $this->get('/pengajuan/lokasi/bukti')->assertRedirect('/login');
+        $owner = $this->user();
+        $this->actingAs($owner)->get('/pengajuan/lokasi/bukti')
+            ->assertRedirect('/pengajuan/lokasi')->assertSessionHas('location_required');
+
+        $this->post('/pengajuan/lokasi', $this->input(['action' => 'continue']))
+            ->assertRedirect('/pengajuan/lokasi/bukti');
+        $draft = PengajuanPlts::firstOrFail();
+        $this->get('/pengajuan/lokasi')->assertOk()
+            ->assertSee('Tentukan lokasi pengajuan')->assertSee('data-location-form', false)
+            ->assertDontSee('data-evidence-upload', false)->assertDontSee('data-location-editor', false);
+        $this->get('/pengajuan/lokasi/bukti')->assertOk()
+            ->assertSee('Tunjukkan kondisi di lapangan')->assertSee('data-evidence-upload', false)
+            ->assertDontSee('data-location-form', false)->assertSee($draft->lokasi->alamat_deskriptif);
+
+        DB::table('bukti_pengajuan')->insert(['pengajuan_id' => $draft->id, 'nama_file_asli' => 'tetap.png',
+            'path_file' => 'bukti-pengajuan/tetap.png', 'mime_type' => 'image/png', 'ukuran_byte' => 68]);
+        $this->post('/pengajuan/lokasi', $this->input(['draft_id' => $draft->id, 'action' => 'save', 'alamat' => 'Alamat baru']))
+            ->assertRedirect('/pengajuan/lokasi');
+        $this->assertDatabaseCount('pengajuan_plts', 1);
+        $this->assertDatabaseHas('bukti_pengajuan', ['pengajuan_id' => $draft->id, 'nama_file_asli' => 'tetap.png']);
+
+        $this->actingAs($this->user())->get('/pengajuan/lokasi/bukti')->assertRedirect('/pengajuan/lokasi');
+        $this->actingAs($this->user('pemerintah'))->get('/pengajuan/lokasi/bukti')->assertForbidden();
+        $draft->status_terkini = 'diajukan';
+        $draft->save();
+        $this->actingAs($owner)->get('/pengajuan/lokasi/bukti')->assertRedirect('/pengajuan/lokasi');
+    }
+
+    public function test_continue_rejects_incomplete_locations_even_with_an_existing_draft(): void
+    {
+        $this->actingAs($this->user());
+        $this->postJson('/pengajuan/lokasi', ['action' => 'continue'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['provinsi', 'kabupaten', 'kecamatan', 'desa', 'alamat']);
+        $this->assertDatabaseCount('pengajuan_plts', 0);
+        $this->post('/pengajuan/lokasi', $this->input())->assertRedirect('/pengajuan/lokasi');
+        $draft = PengajuanPlts::firstOrFail();
+        $original = $draft->lokasi->alamat_deskriptif;
+        foreach (['kabupaten', 'kecamatan', 'desa', 'alamat'] as $field) {
+            $this->postJson('/pengajuan/lokasi', $this->input(['action' => 'continue', 'draft_id' => $draft->id, $field => '   ']))
+                ->assertUnprocessable()->assertJsonValidationErrors($field);
+        }
+        $this->assertSame($original, $draft->fresh()->lokasi->alamat_deskriptif);
+        $this->assertDatabaseCount('pengajuan_plts', 1);
     }
 
     public function test_photo_upload_rejects_non_images_oversized_images_and_more_than_five(): void
@@ -239,9 +287,9 @@ class LokasiPengajuanTest extends TestCase
         Storage::disk('r2')->put($preexistingPath, 'pre-existing object');
         DB::statement("CREATE TRIGGER fail_bukti_insert BEFORE INSERT ON bukti_pengajuan BEGIN SELECT RAISE(FAIL, 'metadata unavailable'); END");
 
-        $this->from('/pengajuan/lokasi')->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
+        $this->from('/pengajuan/lokasi/bukti')->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
             'photos' => [$this->photo('bukti.png')]])
-            ->assertRedirect('/pengajuan/lokasi')->assertSessionHasErrors('photos');
+            ->assertRedirect('/pengajuan/lokasi/bukti')->assertSessionHasErrors('photos');
 
         $this->assertDatabaseCount('bukti_pengajuan', 0);
         $this->assertSame([$preexistingPath], Storage::disk('r2')->allFiles());
@@ -269,9 +317,9 @@ class LokasiPengajuanTest extends TestCase
         $draft = PengajuanPlts::firstOrFail();
         Storage::shouldReceive('disk')->once()->with('r2')->andThrow(new \RuntimeException('private R2 failure detail'));
 
-        $this->from('/pengajuan/lokasi')->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
+        $this->from('/pengajuan/lokasi/bukti')->post('/pengajuan/lokasi/bukti', ['draft_id' => $draft->id,
             'photos' => [$this->photo('bukti.png')]])
-            ->assertRedirect('/pengajuan/lokasi')->assertSessionHasErrors('photos');
+            ->assertRedirect('/pengajuan/lokasi/bukti')->assertSessionHasErrors('photos');
 
         $this->assertDatabaseCount('bukti_pengajuan', 0);
         $this->assertStringNotContainsString('private R2 failure detail', session()->get('errors')->first('photos'));

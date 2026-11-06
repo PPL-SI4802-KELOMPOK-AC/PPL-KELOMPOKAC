@@ -21,7 +21,7 @@ function clearPreview() {
     preview.replaceChildren();
 }
 
-input.addEventListener('change', () => {
+input?.addEventListener('change', () => {
     clearPreview();
     const files = [...input.files];
     const remaining = maxFiles - existingCount;
@@ -88,13 +88,13 @@ input.addEventListener('change', () => {
 });
 
 for (const eventName of ['dragenter', 'dragover']) {
-    dropzone.addEventListener(eventName, event => {
+    dropzone?.addEventListener(eventName, event => {
         event.preventDefault();
         dropzone.classList.add('is-dragging');
     });
 }
 for (const eventName of ['dragleave', 'drop']) {
-    dropzone.addEventListener(eventName, event => {
+    dropzone?.addEventListener(eventName, event => {
         event.preventDefault();
         dropzone.classList.remove('is-dragging');
         if (eventName === 'drop' && event.dataTransfer?.files.length) {

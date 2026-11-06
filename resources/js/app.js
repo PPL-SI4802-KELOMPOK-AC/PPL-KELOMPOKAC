@@ -1,6 +1,26 @@
 import './bootstrap';
 
 if (document.querySelector('[data-location-form]')) {
+    const form = document.querySelector('[data-location-form]');
+    const next = form.querySelector('[data-location-next]');
+    const help = form.querySelector('[data-location-next-help]');
+    const requiredFields = ['provinsi', 'kabupaten', 'kecamatan', 'desa', 'alamat'];
+    const updateNext = () => {
+        const complete = requiredFields.every(name => {
+            const field = form.elements.namedItem(name);
+            return !field.disabled && field.value.trim() !== '' && field.validity.valid;
+        });
+        if (next.disabled === complete) next.disabled = !complete;
+        help.textContent = complete
+            ? 'Data lokasi lengkap. Anda dapat melanjutkan ke bukti foto.'
+            : 'Lengkapi kabupaten/kota, kecamatan, desa/kelurahan, dan alamat untuk melanjutkan.';
+    };
+    form.addEventListener('input', updateNext);
+    form.addEventListener('change', updateNext);
+    const observer = new MutationObserver(updateNext);
+    observer.observe(form, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    updateNext();
+    window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
     import('./location-form').catch(() => {
         document.querySelector('[data-location-map-status]').textContent = 'Peta belum dapat dimuat. Muat ulang halaman atau isi koordinat secara manual.';
     });

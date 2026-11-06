@@ -53,8 +53,11 @@
         </section>
         <section class="panel evidence-side-card evidence-next-card">
             <h2>Siap melanjutkan</h2>
+            <p class="evidence-address">{{ $draft->lokasi->alamat_deskriptif }}</p>
             <p>Foto tersimpan pada draft pengajuan Anda. Pastikan lokasi yang diajukan sudah benar.</p>
-            <a class="button button--primary" href="#location-editor" data-open-location-editor>Kembali ke data lokasi</a>
+            <button class="button button--primary" type="button" disabled aria-describedby="summary-help">Lanjut ke ringkasan</button>
+            <p id="summary-help" class="form-help">Tahap ringkasan belum tersedia.</p>
+            <a class="button" href="{{ route('pengajuan.lokasi') }}">Kembali ke data lokasi</a>
         </section>
     </aside>
 </section>
