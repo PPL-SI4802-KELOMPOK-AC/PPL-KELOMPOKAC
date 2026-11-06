@@ -1,5 +1,23 @@
 import './bootstrap';
 
+const submissionForm = document.querySelector('[data-submission-form]');
+if (submissionForm) {
+    const checkbox = submissionForm.elements.namedItem('pernyataan');
+    const button = submissionForm.querySelector('[data-submission-button]');
+    const status = submissionForm.querySelector('[data-submission-status]');
+    let sending = false;
+    const updateButton = () => { button.disabled = sending || !checkbox.checked; };
+    checkbox.addEventListener('change', updateButton);
+    submissionForm.addEventListener('submit', event => {
+        if (sending || !checkbox.checked) { event.preventDefault(); return; }
+        sending = true;
+        updateButton();
+        status.textContent = 'Pengajuan sedang dikirim. Tunggu sampai nomor pengajuan ditampilkan.';
+    });
+    window.addEventListener('pageshow', () => { sending = false; updateButton(); });
+    updateButton();
+}
+
 if (document.querySelector('[data-location-form]')) {
     const form = document.querySelector('[data-location-form]');
     const next = form.querySelector('[data-location-next]');

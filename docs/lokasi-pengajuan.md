@@ -36,10 +36,10 @@ menghapus foto yang telah tersimpan. Unggah foto berhasil atau gagal kembali ke
 halaman bukti. Penanda tahap mengikuti halaman yang dibuka, bukan keberadaan draft.
 
 PBI-07 menyediakan unggah foto pada halaman bukti tersendiri dengan aturan yang
-sudah ada (maksimal lima foto, 5 MB per foto). Tombol Lanjut ke ringkasan belum
-aktif karena halaman ringkasan belum tersedia. Revisi navigasi ini tidak menambah
-field kebutuhan/identitas, aturan minimal dua foto, hapus foto, pengiriman,
-riwayat, notifikasi, atau perubahan status penanganan.
+sudah ada (maksimal lima foto, 5 MB per foto). PBI-08 menyediakan tombol Lanjut ke
+ringkasan dan pengiriman pengajuan, dijelaskan di [pengiriman-pengajuan.md](pengiriman-pengajuan.md).
+Form lokasi tetap tidak menambah field kebutuhan/identitas, aturan minimal dua
+foto, hapus foto, riwayat pengguna, notifikasi, atau perubahan status lanjutan.
 
 Pengujian backend terisolasi menggunakan SQLite dalam memori:
 

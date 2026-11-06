@@ -43,4 +43,28 @@ Schema::create('bukti_pengajuan', function (Blueprint $table) {
 $user = new User(['name' => 'Pemohon Uji PBI-06', 'email' => 'lokasi-e2e@example.test', 'password' => 'lokasi-e2e-password']);
 $user->role = 'masyarakat';
 $user->save();
+
+Schema::create('riwayat_status_pengajuan', function (Blueprint $table) {
+    $table->id(); $table->foreignId('pengajuan_id')->constrained('pengajuan_plts');
+    $table->foreignId('diubah_oleh')->constrained('users');
+    $statuses = ['diajukan', 'diperiksa', 'diverifikasi', 'diproses', 'selesai', 'ditolak'];
+    $table->enum('status_sebelumnya', $statuses)->nullable(); $table->enum('status_baru', $statuses);
+    $table->string('jenis_tindakan', 50); $table->string('hasil_verifikasi', 50)->nullable();
+    $table->text('catatan')->nullable(); $table->timestamp('created_at')->useCurrent();
+});
+$submitter = new User(['name' => 'Pengusul Uji PBI-08', 'email' => 'pengajuan-e2e@example.test', 'password' => 'pengajuan-e2e-password']);
+$submitter->role = 'masyarakat';
+$submitter->save();
+$draft = new App\Models\PengajuanPlts;
+$draft->user_id = $submitter->id;
+$draft->nomor_tiket = 'DRAFT-'.Illuminate\Support\Str::uuid();
+$draft->ringkasan_pengajuan = 'Lokasi Awassagara, Kabupaten Garut';
+$draft->status_terkini = 'draft';
+$draft->save();
+$draft->lokasi()->create(['alamat_deskriptif' => app(App\Services\Pengajuan\LocationCatalog::class)->address([
+    'kabupaten' => '3205', 'kecamatan' => 'Cikelet', 'desa' => '32.05.30.2010', 'alamat' => 'Kampung Uji, RT 03 / RW 02',
+]), 'latitude' => -7.5812, 'longitude' => 107.6984]);
+foreach (['kondisi-rumah.png', 'akses-jalan.png'] as $index => $name) {
+    $draft->bukti()->create(['nama_file_asli' => $name, 'path_file' => "fixture-only/$draft->id/$index.png", 'mime_type' => 'image/png', 'ukuran_byte' => 1048576]);
+}
 echo "Database SQLite uji PBI-06 siap.\n";
