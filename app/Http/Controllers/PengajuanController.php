@@ -6,6 +6,7 @@ use App\Http\Requests\SubmitPengajuanRequest;
 use App\Models\PengajuanPlts;
 use App\Models\User;
 use App\Services\Pengajuan\LocationCatalog;
+use App\Services\Pengajuan\PengajuanCompleteness;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -13,17 +14,23 @@ use Illuminate\Validation\ValidationException;
 
 class PengajuanController extends Controller
 {
-    public function review(Request $request, LocationCatalog $catalog)
+    public function review(Request $request, LocationCatalog $catalog, PengajuanCompleteness $completeness)
     {
         $draft = PengajuanPlts::with(['lokasi', 'bukti'])
             ->where('user_id', $request->user()->id)->where('status_terkini', 'draft')->latest('id')->first();
 
-        if (! $draft || ! $this->locationComplete($draft, $catalog)) {
+        if (! $draft) {
             return redirect()->route('pengajuan.lokasi')
                 ->with('location_required', 'Lengkapi dan simpan data lokasi sebelum memeriksa ringkasan.');
         }
-        if ($draft->bukti->isEmpty()) {
-            return redirect()->route('pengajuan.bukti')->withErrors(['photos' => 'Unggah minimal satu foto bukti sebelum melanjutkan.']);
+
+        $errors = $completeness->errors($draft, $catalog);
+        if ($errors !== []) {
+            $destination = isset($errors['data_pengajuan']) || isset($errors['lokasi'])
+                ? 'pengajuan.lokasi'
+                : 'pengajuan.bukti';
+
+            return redirect()->route($destination)->withErrors($errors);
         }
 
         $location = $catalog->addressFields($draft->lokasi->alamat_deskriptif);
@@ -34,10 +41,10 @@ class PengajuanController extends Controller
             ->header('Cache-Control', 'private, no-store');
     }
 
-    public function submit(SubmitPengajuanRequest $request, LocationCatalog $catalog)
+    public function submit(SubmitPengajuanRequest $request, LocationCatalog $catalog, PengajuanCompleteness $completeness)
     {
         $input = $request->validated();
-        $pengajuan = DB::transaction(function () use ($request, $input, $catalog) {
+        $pengajuan = DB::transaction(function () use ($request, $input, $catalog, $completeness) {
             // Urutan kunci sama dengan penyimpanan lokasi; pengiriman ulang memakai baris yang sama.
             User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
             $draft = PengajuanPlts::whereKey($input['draft_id'])->where('user_id', $request->user()->id)
@@ -47,11 +54,9 @@ class PengajuanController extends Controller
                 return $draft;
             }
             $draft->load(['lokasi', 'bukti']);
-            if (! $this->locationComplete($draft, $catalog)) {
-                throw ValidationException::withMessages(['lokasi' => 'Lengkapi dan simpan data lokasi sebelum mengirim.']);
-            }
-            if ($draft->bukti->isEmpty() || $draft->bukti->count() > 5) {
-                throw ValidationException::withMessages(['photos' => 'Pengajuan harus memiliki satu hingga lima foto bukti tersimpan.']);
+            $errors = $completeness->errors($draft, $catalog);
+            if ($errors !== []) {
+                throw ValidationException::withMessages($errors);
             }
 
             $draft->nomor_tiket = 'PLTS-'.now()->format('Ymd').'-'.Str::ulid();
@@ -83,16 +88,5 @@ class PengajuanController extends Controller
 
         return response()->view('pengajuan.terkirim', compact('pengajuan'))
             ->header('Cache-Control', 'private, no-store');
-    }
-
-    private function locationComplete(PengajuanPlts $draft, LocationCatalog $catalog): bool
-    {
-        if (! $draft->lokasi) {
-            return false;
-        }
-        $location = $catalog->addressFields($draft->lokasi->alamat_deskriptif);
-
-        return trim($location['alamat']) !== ''
-            && $catalog->selection($location['kabupaten'], $location['kecamatan'], $location['desa']) !== null;
     }
 }

@@ -12,11 +12,7 @@
     </section>
     @if(session('location_saved'))<div class="notice" role="status">{{ session('location_saved') }}</div>@endif
     @if(session('location_required'))<div class="notice" role="status">{{ session('location_required') }}</div>@endif
-    @if($errors->any())
-        <div class="notice is-error" role="alert"><strong>Periksa data berikut:</strong><ul>
-            @foreach($errors->messages() as $field => $messages)<li><a href="#{{ $field }}">{{ $messages[0] }}</a></li>@endforeach
-        </ul></div>
-    @endif
+    @include('pengajuan.partials.validation-summary')
     @include('pengajuan.partials.steps', ['step' => 'lokasi'])
     <form class="location-grid" action="{{ route('pengajuan.lokasi.store') }}" method="POST" data-location-form
         data-administration-url="{{ route('pengajuan.lokasi.administrasi') }}" data-areas-url="{{ asset('data/map-boundaries') }}">
