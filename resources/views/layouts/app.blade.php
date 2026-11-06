@@ -24,7 +24,7 @@
         <p class="sidebar-label">RUANG KERJA</p>
         <nav aria-label="Navigasi utama">
             @if(!auth()->check() || auth()->user()->role === 'masyarakat')
-                <a href="{{ route('pengajuan.lokasi') }}" @if(request()->routeIs('pengajuan.*')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12Z"/><circle cx="12" cy="9" r="2"/></svg>Pengajuan PLTS</a>
+                <a href="{{ route('pengajuan.lokasi') }}" @if(request()->routeIs('pengajuan.*') && !request()->routeIs('pengajuan.riwayat')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12Z"/><circle cx="12" cy="9" r="2"/></svg>Pengajuan PLTS</a>
             @endif
             <a href="{{ route('wilayah.index') }}" @if(request()->routeIs('wilayah.index')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>Data wilayah</a>
             <a href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Beranda</a>
@@ -41,7 +41,8 @@
             </a>
             <nav class="top-nav" aria-label="Navigasi utama">
                 <a href="{{ route('wilayah.map') }}">Peta wilayah</a>
-                <a href="{{ route('pengajuan.lokasi') }}" aria-current="page">Pengajuan PLTS</a>
+                <a href="{{ route('pengajuan.lokasi') }}" @unless(request()->routeIs('pengajuan.riwayat')) aria-current="page" @endunless>Pengajuan PLTS</a>
+                <a href="{{ route('pengajuan.riwayat') }}" @if(request()->routeIs('pengajuan.riwayat')) aria-current="page" @endif>Riwayat</a>
             </nav>
             <div class="workspace-identity">
                 @auth<span class="account-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 2)) }}</span>@endauth
