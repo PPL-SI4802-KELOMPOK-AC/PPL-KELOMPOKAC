@@ -4,6 +4,7 @@ use App\Http\Controllers\BuktiPengajuanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\LokasiPengajuanController;
+use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\RegionMapController;
 use App\Http\Controllers\WilayahController;
 use App\Http\Middleware\RequireMasyarakat;
@@ -29,6 +30,9 @@ Route::prefix('pengajuan/lokasi')->name('pengajuan.')->middleware(RequireMasyara
     Route::get('/bukti', [BuktiPengajuanController::class, 'edit'])->name('bukti');
     Route::post('/bukti', [BuktiPengajuanController::class, 'store'])->middleware('throttle:location-save')->name('bukti.store');
     Route::get('/bukti/{bukti}', [BuktiPengajuanController::class, 'show'])->whereNumber('bukti')->name('bukti.show');
+    Route::get('/ringkasan', [PengajuanController::class, 'review'])->name('ringkasan');
+    Route::post('/kirim', [PengajuanController::class, 'submit'])->middleware('throttle:location-save')->name('kirim');
+    Route::get('/terkirim/{pengajuan}', [PengajuanController::class, 'receipt'])->whereNumber('pengajuan')->name('terkirim');
 });
 
 Route::prefix('pemerintah/wilayah')->name('wilayah.')->middleware(RequirePemerintah::class)->group(function () {

@@ -103,8 +103,7 @@ class BuktiPengajuanController extends Controller
     public function show(Request $request, int $bukti)
     {
         $evidence = BuktiPengajuan::query()->whereKey($bukti)
-            ->whereHas('pengajuan', fn ($query) => $query->where('user_id', $request->user()->id)
-                ->where('status_terkini', 'draft'))
+            ->whereHas('pengajuan', fn ($query) => $query->where('user_id', $request->user()->id))
             ->firstOrFail();
 
         return redirect()->away(Storage::disk('r2')->temporaryUrl($evidence->path_file, now()->addMinutes(5)))

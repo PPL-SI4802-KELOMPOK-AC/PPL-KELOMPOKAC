@@ -118,3 +118,47 @@ test('isi lokasi, preview foto bukti, simpan draft dan periksa tampilan seluler'
     await expect(page.getByRole('button', { name: 'Simpan draft', exact: true })).toBeEnabled();
     expect(errors).toEqual([]);
 });
+
+test('periksa ringkasan, setujui pernyataan, kirim dan buka ulang nomor pengajuan', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    // Foto uji dipenuhi di browser; tidak ada akses bucket R2 sebenarnya.
+    await page.route(/\/pengajuan\/lokasi\/bukti\/\d+$/, route => route.fulfill({ contentType: 'image/png', body: tile }));
+    await page.route('https://tile.openstreetmap.org/**', route => route.fulfill({ contentType: 'image/png', body: tile }));
+    await page.goto('/pengajuan/lokasi/ringkasan');
+    await page.locator('#email').fill('pengajuan-e2e@example.test');
+    await page.locator('#password').fill('pengajuan-e2e-password');
+    await page.getByRole('button', { name: 'Masuk', exact: true }).click();
+    await expect(page).toHaveURL(/\/pengajuan\/lokasi\/ringkasan$/);
+    await expect(page.getByRole('heading', { name: 'Periksa sebelum mengirim' })).toBeVisible();
+    await expect(page.locator('.location-stepper [aria-current=step]')).toContainText('Ringkasan & kirim');
+    await expect(page.locator('.review-evidence img')).toHaveCount(2);
+    await expect(page.getByText('Pengusul Uji PBI-08', { exact: true })).toHaveCount(2);
+    const send = page.getByRole('button', { name: 'Kirim pengajuan' });
+    await expect(send).toBeDisabled();
+    await page.locator('#pernyataan').check();
+    await expect(send).toBeEnabled();
+    await page.locator('#pernyataan').uncheck();
+    await expect(send).toBeDisabled();
+    await page.screenshot({ path: 'test-results/pbi08-summary-desktop.png', fullPage: true });
+    await page.getByRole('link', { name: 'Kembali ke bukti foto' }).click();
+    await expect(page.locator('.evidence-grid img')).toHaveCount(2);
+    await page.getByRole('link', { name: 'Lanjut ke ringkasan' }).click();
+    for (const width of [390, 320]) {
+        await page.setViewportSize({ width, height: 900 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(send).toBeDisabled();
+    }
+    await page.screenshot({ path: 'test-results/pbi08-summary-mobile.png', fullPage: true });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('#pernyataan').check();
+    await send.click();
+    await expect(page).toHaveURL(/\/pengajuan\/lokasi\/terkirim\/\d+$/);
+    await expect(page.getByRole('heading', { name: 'Pengajuan berhasil dikirim' })).toBeVisible();
+    const ticket = await page.locator('.submission-ticket').innerText();
+    expect(ticket).toMatch(/^PLTS-\d{8}-[0-9A-Z]{26}$/);
+    await page.reload();
+    await expect(page.locator('.submission-ticket')).toHaveText(ticket);
+    await page.screenshot({ path: 'test-results/pbi08-submitted.png', fullPage: true });
+    expect(errors).toEqual([]);
+});

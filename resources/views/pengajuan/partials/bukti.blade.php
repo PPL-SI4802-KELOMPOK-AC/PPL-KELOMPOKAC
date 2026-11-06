@@ -55,8 +55,12 @@
             <h2>Siap melanjutkan</h2>
             <p class="evidence-address">{{ $draft->lokasi->alamat_deskriptif }}</p>
             <p>Foto tersimpan pada draft pengajuan Anda. Pastikan lokasi yang diajukan sudah benar.</p>
-            <button class="button button--primary" type="button" disabled aria-describedby="summary-help">Lanjut ke ringkasan</button>
-            <p id="summary-help" class="form-help">Tahap ringkasan belum tersedia.</p>
+            @if($draft->bukti->isNotEmpty())
+                <a class="button button--primary" href="{{ route('pengajuan.ringkasan') }}">Lanjut ke ringkasan</a>
+            @else
+                <button class="button button--primary" type="button" disabled aria-describedby="summary-help">Lanjut ke ringkasan</button>
+                <p id="summary-help" class="form-help">Unggah minimal satu foto untuk melanjutkan.</p>
+            @endif
             <a class="button" href="{{ route('pengajuan.lokasi') }}">Kembali ke data lokasi</a>
         </section>
     </aside>
