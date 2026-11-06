@@ -27,9 +27,19 @@ Kolom `lokasi_pengajuan.latitude` dan `longitude` perlu mengizinkan NULL, dengan
 presisi tetap DECIMAL(10,7) dan DECIMAL(11,7). Tidak ada migrasi Laravel yang
 dijalankan pada database bersama.
 
-Cakupan fitur hanya data lokasi dan penyimpanan draft. Halaman tidak menyediakan
-unggah bukti, pengisian kebutuhan/identitas tambahan, pengiriman, riwayat,
-notifikasi, atau perubahan status penanganan.
+Halaman lokasi dan bukti foto dipisahkan sesuai tahap pengajuan. Tombol Simpan
+draft tetap di `/pengajuan/lokasi`; tombol Lanjut ke bukti foto memvalidasi dan
+menyimpan lokasi yang sama lalu mengarahkan ke `/pengajuan/lokasi/bukti`.
+Halaman bukti hanya dapat dibuka oleh pemilik draft dengan lokasi tersimpan.
+Tombol Kembali ke data lokasi membuka form sebelumnya; perubahan lokasi tidak
+menghapus foto yang telah tersimpan. Unggah foto berhasil atau gagal kembali ke
+halaman bukti. Penanda tahap mengikuti halaman yang dibuka, bukan keberadaan draft.
+
+PBI-07 menyediakan unggah foto pada halaman bukti tersendiri dengan aturan yang
+sudah ada (maksimal lima foto, 5 MB per foto). Tombol Lanjut ke ringkasan belum
+aktif karena halaman ringkasan belum tersedia. Revisi navigasi ini tidak menambah
+field kebutuhan/identitas, aturan minimal dua foto, hapus foto, pengiriman,
+riwayat, notifikasi, atau perubahan status penanganan.
 
 Pengujian backend terisolasi menggunakan SQLite dalam memori:
 

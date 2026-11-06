@@ -67,6 +67,7 @@ class LokasiPengajuanController extends Controller
             ]);
         });
 
-        return redirect()->route('pengajuan.lokasi')->with('location_saved', 'Draft lokasi berhasil disimpan.');
+        return redirect()->route($request->input('action') === 'continue' ? 'pengajuan.bukti' : 'pengajuan.lokasi')
+            ->with('location_saved', 'Draft lokasi berhasil disimpan.');
     }
 }

@@ -99,14 +99,12 @@
 .evidence-not-ready { padding: 18px 20px; margin-bottom: 24px; }
 .evidence-not-ready strong { font-size: 16px; }
 .evidence-not-ready p { margin: 6px 0 0; color: #71879b; font-size: 12px; }
-.location-editor { margin: 24px 0 18px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
-.location-editor > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; color: #0c3d5b; cursor: pointer; list-style: none; }
-.location-editor > summary::-webkit-details-marker { display: none; }
-.location-editor > summary > span:first-child { display: grid; gap: 4px; }
-.location-editor > summary strong { font-size: 13px; }
-.location-editor > summary small { color: #71879b; font-size: 11px; }
-.location-editor[open] > summary { border-bottom: 1px solid var(--border); }
-.location-editor > .location-grid { padding: 18px; margin-bottom: 0; }
+.location-save .button { gap: 8px; }
+.location-page .button:disabled { opacity: .55; cursor: not-allowed; }
+.evidence-address { overflow-wrap: anywhere; }
+.evidence-card { padding: 22px; }
+.evidence-card img { border-radius: 10px; }
+.evidence-card figcaption { padding: 12px 0 0; gap: 12px; }
 .location-page .site-footer { max-width: 1312px; }
 @media (max-width: 980px) {
     .location-page .location-site-header { grid-template-columns: auto 1fr; gap: 14px; }
@@ -135,4 +133,5 @@
     .evidence-dropzone { min-height: 165px; padding: 16px; }
     .evidence-dropzone > strong { font-size: 14px; }
     .evidence-side-card { padding: 18px; }
+    .evidence-card { padding: 18px; }
 }

@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0c3d5b">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <meta name="description" content="TerangDesa — jelajahi wilayah pendataan kebutuhan listrik di Jawa Barat.">
     <title>@yield('title', 'TerangDesa')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -32,7 +33,7 @@
         <div class="sidebar-context"><strong>TerangDesa · Jawa Barat</strong><span>Energi untuk setiap desa</span><span>Pendataan kebutuhan energi desa</span></div>
     </aside>
     <div class="workspace">
-        @if(request()->routeIs('pengajuan.lokasi'))
+        @if(request()->routeIs('pengajuan.lokasi', 'pengajuan.bukti'))
         <header class="site-header location-site-header">
             <a class="brand" href="{{ route('home') }}" aria-label="TerangDesa, beranda">
                 <span class="brand__symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></span>

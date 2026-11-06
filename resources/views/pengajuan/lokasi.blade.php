@@ -1,36 +1,23 @@
 @extends('layouts.app')
-@section('title', 'Bukti Foto Pengajuan | TerangDesa')
+@section('title', 'Lokasi Pengajuan | TerangDesa')
 @section('body-class', 'admin-page location-page')
 @section('breadcrumb', 'Lokasi pengajuan')
 @section('content')
     <section class="page-intro evidence-page-intro" aria-labelledby="location-title">
         <div>
-            <h1 id="location-title">Tunjukkan kondisi di lapangan</h1>
-            <p>Pengajuan kebutuhan PLTS · Dokumentasikan kondisi rumah dan akses lokasi.</p>
+            <h1 id="location-title">Tentukan lokasi pengajuan</h1>
+            <p>Lengkapi alamat wilayah dan pilih titik calon lokasi PLTS.</p>
         </div>
         @if($draft)<span class="draft-badge">Draft tersimpan</span>@endif
     </section>
     @if(session('location_saved'))<div class="notice" role="status">{{ session('location_saved') }}</div>@endif
-    @if(session('evidence_saved'))<div class="notice" role="status">{{ session('evidence_saved') }}</div>@endif
+    @if(session('location_required'))<div class="notice" role="status">{{ session('location_required') }}</div>@endif
     @if($errors->any())
         <div class="notice is-error" role="alert"><strong>Periksa data berikut:</strong><ul>
             @foreach($errors->messages() as $field => $messages)<li><a href="#{{ $field }}">{{ $messages[0] }}</a></li>@endforeach
         </ul></div>
     @endif
-    <ol class="location-stepper" aria-label="Tahapan pengajuan">
-        <li class="{{ $draft ? 'is-complete' : 'is-current' }}">
-            @if($draft)<a href="#location-editor" data-open-location-editor aria-label="Buka data lokasi tersimpan"><span aria-hidden="true">✓</span>Data lokasi</a>
-            @else<span><span aria-hidden="true">1</span>Data lokasi</span>@endif
-        </li>
-        <li class="{{ $draft ? 'is-current' : 'is-pending' }}" @if($draft) aria-current="step" @endif><span><span aria-hidden="true">2</span>Bukti foto</span></li>
-        <li class="is-pending"><span><span aria-hidden="true">3</span>Ringkasan &amp; kirim</span></li>
-    </ol>
-
-    @if($draft)
-        @include('pengajuan.partials.bukti')
-        <details class="location-editor" id="location-editor" data-location-editor>
-            <summary><span><strong>Data lokasi</strong><small>Draft tersimpan · Ubah jika perlu</small></span><span aria-hidden="true">⌄</span></summary>
-    @endif
+    @include('pengajuan.partials.steps', ['step' => 'lokasi'])
     <form class="location-grid" action="{{ route('pengajuan.lokasi.store') }}" method="POST" data-location-form
         data-administration-url="{{ route('pengajuan.lokasi.administrasi') }}" data-areas-url="{{ asset('data/map-boundaries') }}">
         @csrf
@@ -75,14 +62,15 @@
             </div>
             <p id="location-coordinate-help" class="form-help">Koordinat boleh dikosongkan. Jika diisi, lengkapi lintang dan bujur.</p>
             <p class="location-point-status" data-location-point-status role="status">Belum ada titik dipilih. Draft dapat disimpan berdasarkan alamat.</p>
-            <div class="location-save"><button class="button button--primary" type="submit">Simpan draft lokasi</button><p class="form-help">Draft tersimpan di akun Anda dan dapat dibuka kembali melalui menu Pengajuan PLTS.</p></div>
+            <div class="location-save">
+                <button class="button" type="submit" name="action" value="save">Simpan draft</button>
+                <button class="button button--primary" type="submit" name="action" value="continue" data-location-next disabled aria-describedby="location-next-help"><span aria-hidden="true">&rarr;</span> Lanjut ke bukti foto</button>
+            </div>
+            <p id="location-next-help" class="form-help" data-location-next-help role="status">Lengkapi kabupaten/kota, kecamatan, desa/kelurahan, dan alamat untuk melanjutkan.</p>
+            <p class="form-help">Draft tersimpan di akun Anda. Lanjutkan untuk menambahkan foto bukti kondisi wilayah.</p>
             <p class="form-help">* Wajib diisi. Batas wilayah pada peta adalah referensi administratif.</p>
         </section>
     </form>
-    @if($draft)</details>
-    @else
-        <section class="panel evidence-not-ready"><strong>Bukti foto</strong><p>Simpan draft lokasi terlebih dahulu untuk mengunggah foto bukti.</p></section>
-    @endif
     <script type="application/json" data-location-villages>@json($villages)</script>
     <noscript><p class="notice is-error">Aktifkan JavaScript untuk memilih kecamatan, desa, dan titik pada peta.</p></noscript>
 @endsection

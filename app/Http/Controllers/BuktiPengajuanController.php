@@ -16,6 +16,21 @@ class BuktiPengajuanController extends Controller
 {
     private const MAX_FILES = 5;
 
+    public function edit(Request $request)
+    {
+        $draft = PengajuanPlts::with(['lokasi', 'bukti'])
+            ->where('user_id', $request->user()->id)
+            ->where('status_terkini', 'draft')->latest('id')->first();
+
+        if (! $draft?->lokasi) {
+            return redirect()->route('pengajuan.lokasi')
+                ->with('location_required', 'Simpan data lokasi terlebih dahulu sebelum mengunggah bukti foto.');
+        }
+
+        return response()->view('pengajuan.bukti', compact('draft'))
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function store(StoreBuktiPengajuanRequest $request)
     {
         $input = $request->validated();
@@ -78,11 +93,11 @@ class BuktiPengajuanController extends Controller
                 'reason' => class_basename($exception),
             ]);
 
-            return redirect()->route('pengajuan.lokasi')
+            return redirect()->route('pengajuan.bukti')
                 ->withErrors(['photos' => 'Foto gagal disimpan. Periksa koneksi dan coba lagi.']);
         }
 
-        return redirect()->route('pengajuan.lokasi')->with('evidence_saved', count($savedPaths).' foto bukti berhasil disimpan.');
+        return redirect()->route('pengajuan.bukti')->with('evidence_saved', count($savedPaths).' foto bukti berhasil disimpan.');
     }
 
     public function show(Request $request, int $bukti)
