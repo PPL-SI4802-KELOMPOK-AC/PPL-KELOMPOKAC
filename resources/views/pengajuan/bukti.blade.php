@@ -12,11 +12,7 @@
     </section>
     @if(session('location_saved'))<div class="notice" role="status">{{ session('location_saved') }}</div>@endif
     @if(session('evidence_saved'))<div class="notice" role="status">{{ session('evidence_saved') }}</div>@endif
-    @if($errors->any())
-        <div class="notice is-error" role="alert"><strong>Periksa foto berikut:</strong><ul>
-            @foreach($errors->all() as $message)<li>{{ $message }}</li>@endforeach
-        </ul></div>
-    @endif
+    @include('pengajuan.partials.validation-summary')
     @include('pengajuan.partials.steps', ['step' => 'bukti'])
     @include('pengajuan.partials.bukti')
 @endsection

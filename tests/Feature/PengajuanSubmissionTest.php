@@ -117,6 +117,41 @@ class PengajuanSubmissionTest extends TestCase
         $this->get('/pengajuan/lokasi/ringkasan')->assertRedirect('/pengajuan/lokasi/bukti')->assertSessionHasErrors('photos');
     }
 
+    public function test_review_and_submit_reject_the_same_missing_primary_data(): void
+    {
+        $owner = $this->user();
+        $draft = $this->draft($owner);
+        $ticket = $draft->nomor_tiket;
+        $draft->ringkasan_pengajuan = '';
+        $draft->save();
+
+        $this->followingRedirects()->actingAs($owner)->get('/pengajuan/lokasi/ringkasan')
+            ->assertOk()
+            ->assertSee('Data utama pengajuan belum lengkap.')
+            ->assertSee(route('pengajuan.lokasi').'#location-fields-title', false);
+        $this->postJson('/pengajuan/lokasi/kirim', ['draft_id' => $draft->id, 'pernyataan' => 1])
+            ->assertUnprocessable()->assertJsonValidationErrors('data_pengajuan');
+
+        $this->assertSame('draft', $draft->fresh()->status_terkini);
+        $this->assertSame($ticket, $draft->fresh()->nomor_tiket);
+        $this->assertDatabaseCount('riwayat_status_pengajuan', 0);
+    }
+
+    public function test_submit_rejects_incomplete_coordinate_pairs_but_keeps_coordinates_optional(): void
+    {
+        $owner = $this->user();
+        $draft = $this->draft($owner);
+        $draft->lokasi->forceFill(['latitude' => -7.5, 'longitude' => null])->save();
+
+        $this->actingAs($owner)->postJson('/pengajuan/lokasi/kirim', [
+            'draft_id' => $draft->id,
+            'pernyataan' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('lokasi');
+
+        $this->assertSame('draft', $draft->fresh()->status_terkini);
+        $this->assertDatabaseCount('riwayat_status_pengajuan', 0);
+    }
+
     public function test_declaration_must_be_accepted_before_submit(): void
     {
         $owner = $this->user();
@@ -182,6 +217,28 @@ class PengajuanSubmissionTest extends TestCase
             $this->assertSame('draft', $draft->fresh()->status_terkini);
             $this->assertSame($ticket, $draft->fresh()->nomor_tiket);
         }
+        $this->assertDatabaseCount('riwayat_status_pengajuan', 0);
+    }
+
+    public function test_submit_rechecks_saved_photo_format_and_size_limits(): void
+    {
+        $owner = $this->user();
+        $this->actingAs($owner);
+
+        foreach ([['mime_type' => 'text/plain'], ['ukuran_byte' => 5 * 1024 * 1024 + 1]] as $invalidMetadata) {
+            $draft = $this->draft($owner);
+            $ticket = $draft->nomor_tiket;
+            $draft->bukti()->firstOrFail()->update($invalidMetadata);
+
+            $this->postJson('/pengajuan/lokasi/kirim', [
+                'draft_id' => $draft->id,
+                'pernyataan' => 1,
+            ])->assertUnprocessable()->assertJsonValidationErrors('photos');
+
+            $this->assertSame('draft', $draft->fresh()->status_terkini);
+            $this->assertSame($ticket, $draft->fresh()->nomor_tiket);
+        }
+
         $this->assertDatabaseCount('riwayat_status_pengajuan', 0);
     }
 

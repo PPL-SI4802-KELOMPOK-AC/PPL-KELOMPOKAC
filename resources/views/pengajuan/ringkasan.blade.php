@@ -11,11 +11,7 @@
         <span class="draft-badge">Draft tersimpan</span>
     </section>
     @include('pengajuan.partials.steps', ['step' => 'ringkasan'])
-    @if($errors->any())
-        <div class="notice is-error" role="alert"><strong>Pengajuan belum dapat dikirim:</strong><ul>
-            @foreach($errors->all() as $message)<li>{{ $message }}</li>@endforeach
-        </ul></div>
-    @endif
+    @include('pengajuan.partials.validation-summary')
     <div class="review-grid">
         <div class="review-column">
             <section class="panel review-card" aria-labelledby="review-location-title">
