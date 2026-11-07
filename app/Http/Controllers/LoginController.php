@@ -20,20 +20,20 @@ class LoginController extends Controller
             'password' => ['required', 'string', 'max:255'],
         ]);
         if (! Auth::attempt($credentials)) {
-            throw ValidationException::withMessages(['email' => 'Email atau kata sandi tidak sesuai.']);
+            throw ValidationException::withMessages(['email' => 'Email atau kata sandi salah']);
         }
         if ($request->user()->is_active === false) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            throw ValidationException::withMessages(['email' => 'Email atau kata sandi tidak sesuai, atau akun dinonaktifkan.']);
+            throw ValidationException::withMessages(['email' => 'Email atau kata sandi salah']);
         }
         $request->session()->regenerate();
 
         $role = $request->user()->role;
         $destination = match ($role) {
             'pemerintah' => 'wilayah.index',
-            'masyarakat' => 'pengajuan.lokasi',
+            'masyarakat' => 'wilayah.map',
             'admin' => 'admin.dashboard',
             default => 'home',
         };

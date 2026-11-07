@@ -174,7 +174,8 @@ class AdminUserManagementTest extends TestCase
         $admin->save();
         $this->from('/login')->post('/login', [
             'email' => $admin->email, 'password' => 'password-pengujian-123',
-        ])->assertRedirect('/login')->assertSessionHasErrors('email');
+        ])->assertRedirect('/login')
+            ->assertSessionHasErrors(['email' => 'Email atau kata sandi salah']);
         $this->assertGuest();
     }
 
@@ -204,7 +205,7 @@ class AdminUserManagementTest extends TestCase
         $person = $this->account('masyarakat');
         $this->withSession(['url.intended' => $intended])->post('/login', [
             'email' => $person->email, 'password' => 'password-pengujian-123',
-        ])->assertRedirect('/pengajuan/lokasi');
+        ])->assertRedirect('/peta-wilayah');
     }
 
     public function test_first_admin_command_hashes_password_and_does_not_replace_an_existing_account(): void

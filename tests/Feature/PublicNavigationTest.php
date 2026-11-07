@@ -68,7 +68,7 @@ class PublicNavigationTest extends TestCase
 
     public function test_login_lands_on_existing_routes_for_each_role(): void
     {
-        foreach (['masyarakat' => '/pengajuan/lokasi', 'pemerintah' => '/pemerintah/wilayah', 'admin' => '/admin/ringkasan'] as $role => $path) {
+        foreach (['masyarakat' => '/peta-wilayah', 'pemerintah' => '/pemerintah/wilayah', 'admin' => '/admin/ringkasan'] as $role => $path) {
             $this->user($role);
             $this->post('/login', ['email' => $role.'@example.test', 'password' => 'navigation-password'])->assertRedirect($path);
             $this->post('/logout');
@@ -78,12 +78,42 @@ class PublicNavigationTest extends TestCase
     public function test_login_respects_an_authorized_intended_page_but_rejects_cross_role_and_external_destinations(): void
     {
         $this->user('masyarakat');
-        foreach ([url('/pengajuan/riwayat') => '/pengajuan/riwayat', url('/pemerintah/wilayah') => '/pengajuan/lokasi',
-            'https://untrusted.example/pengajuan/lokasi' => '/pengajuan/lokasi'] as $intended => $destination) {
+        foreach ([url('/pengajuan/riwayat') => '/pengajuan/riwayat', url('/pemerintah/wilayah') => '/peta-wilayah',
+            'https://untrusted.example/pengajuan/lokasi' => '/peta-wilayah'] as $intended => $destination) {
             $this->withSession(['url.intended' => $intended])->post('/login', [
                 'email' => 'masyarakat@example.test', 'password' => 'navigation-password',
             ])->assertRedirect($destination);
             $this->post('/logout');
+        }
+    }
+
+    public function test_login_uses_the_same_generic_error_for_wrong_password_and_unknown_email(): void
+    {
+        $this->user('masyarakat');
+
+        foreach ([
+            ['email' => 'masyarakat@example.test', 'password' => 'wrong-password'],
+            ['email' => 'unknown@example.test', 'password' => 'navigation-password'],
+        ] as $credentials) {
+            $this->from('/login')->post('/login', $credentials)
+                ->assertRedirect('/login')
+                ->assertSessionHasErrors(['email' => 'Email atau kata sandi salah']);
+            $this->assertGuest();
+        }
+    }
+
+    public function test_login_rejects_empty_email_or_password(): void
+    {
+        $this->user('masyarakat');
+
+        foreach ([
+            [['email' => '', 'password' => 'navigation-password'], 'email'],
+            [['email' => 'masyarakat@example.test', 'password' => ''], 'password'],
+        ] as [$credentials, $field]) {
+            $this->from('/login')->post('/login', $credentials)
+                ->assertRedirect('/login')
+                ->assertSessionHasErrors($field);
+            $this->assertGuest();
         }
     }
 
