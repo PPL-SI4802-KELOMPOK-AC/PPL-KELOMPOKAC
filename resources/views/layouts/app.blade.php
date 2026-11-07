@@ -9,11 +9,15 @@
     <title>@yield('title', 'TerangDesa')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="@yield('body-class')">
+@php
+    $usesTopNavigation = !auth()->check() || auth()->user()->role !== 'pemerintah' || request()->routeIs('home');
+@endphp
+<body class="@yield('body-class'){{ $usesTopNavigation ? ' top-navigation-page' : '' }}">
     <a class="skip-link" href="#konten">Lewati ke konten</a>
     @unless(request()->routeIs('home', 'wilayah.index', 'wilayah.map', 'login', 'pengajuan.*'))
         <div class="ambient" aria-hidden="true"><div class="ambient__back"></div><div class="ambient__front"></div><div class="ambient__cursor"></div></div>
     @endunless
+    @unless($usesTopNavigation)
     <button class="drawer-backdrop" data-drawer-close aria-label="Tutup menu navigasi" hidden></button>
     <aside id="sidebar" class="sidebar" aria-label="Menu aplikasi TerangDesa" tabindex="-1">
         <button class="button drawer-close" data-drawer-close type="button" hidden>Tutup menu ×</button>
@@ -32,28 +36,10 @@
         </nav>
         <div class="sidebar-context"><strong>TerangDesa · Jawa Barat</strong><span>Energi untuk setiap desa</span><span>Pendataan kebutuhan energi desa</span></div>
     </aside>
+    @endunless
     <div class="workspace">
-        @if(request()->routeIs('pengajuan.*'))
-        <header class="site-header location-site-header">
-            <a class="brand" href="{{ route('home') }}" aria-label="TerangDesa, beranda">
-                <span class="brand__symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></span>
-                <span class="brand__text">TerangDesa<small>PEMETAAN &amp; PENGAJUAN PLTS</small></span>
-            </a>
-            <nav class="top-nav" aria-label="Navigasi utama">
-                <a href="{{ route('wilayah.map') }}">Peta wilayah</a>
-                <a href="{{ route('pengajuan.lokasi') }}" @unless(request()->routeIs('pengajuan.riwayat')) aria-current="page" @endunless>Pengajuan PLTS</a>
-                <a href="{{ route('pengajuan.riwayat') }}" @if(request()->routeIs('pengajuan.riwayat')) aria-current="page" @endif>Riwayat</a>
-            </nav>
-            <div class="workspace-identity">
-                @auth<span class="account-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 2)) }}</span>@endauth
-                <div><strong>@auth{{ auth()->user()->name }}@else TerangDesa @endauth</strong><span>@auth{{ ucfirst(auth()->user()->role ?? 'Akun terhubung') }}@else Pemetaan wilayah @endauth</span></div>
-                @auth
-                    <form action="{{ route('logout') }}" method="POST" data-leave-form>@csrf<button class="button" type="submit">Keluar</button></form>
-                @else
-                    <a class="button" href="{{ route('login') }}">Masuk</a>
-                @endauth
-            </div>
-        </header>
+        @if($usesTopNavigation)
+            @include('layouts.partials.top-navigation')
         @else
         <header class="site-header">
             <button class="button drawer-toggle" type="button" data-drawer-open aria-controls="sidebar" aria-expanded="false" hidden>☰ <span>Menu</span></button>
