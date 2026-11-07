@@ -14,6 +14,9 @@
                 @elseif(auth()->user()?->role === 'pemerintah')
                     <a href="{{ route('wilayah.index') }}">Data wilayah</a>
                 @endif
+                @if(auth()->user()?->role === 'admin')
+                    <a href="{{ route('admin.dashboard') }}">Administrasi</a>
+                @endif
             </nav>
             <div class="workspace-identity">
                 @auth<span class="account-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 2)) }}</span>@endauth

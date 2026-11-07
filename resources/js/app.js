@@ -1,4 +1,5 @@
 import './bootstrap';
+import './admin-users';
 
 const submissionForm = document.querySelector('[data-submission-form]');
 if (submissionForm) {

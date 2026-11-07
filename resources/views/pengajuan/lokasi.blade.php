@@ -46,7 +46,7 @@
             <div class="panel location-map-panel">
                 <div class="location-map-heading"><strong>Jawa Barat</strong><span>Pilih titik calon lokasi PLTS</span></div>
                 <div id="location-map" data-location-map data-tile-url="{{ config('map.tile_url') }}" data-attribution="{{ config('map.attribution') }}" data-boundary-url="{{ asset('data/jawa-barat.geojson') }}" role="region" aria-label="Peta pemilihan lokasi" aria-describedby="location-map-help"></div>
-                <div class="location-map-actions"><button class="button" type="button" data-location-center disabled>Pilih titik di tengah peta</button><button class="button" type="button" data-location-home disabled>Lihat Jawa Barat</button><button class="button" type="button" data-location-clear disabled>Hapus titik</button></div>
+                <div class="location-map-actions"><button class="button" type="button" data-location-center disabled>Pilih titik di tengah peta</button><button class="button" type="button" data-location-clear disabled>Hapus titik</button></div>
                 <p id="location-map-help">Klik peta atau pilih titik di tengah peta, lalu geser penanda untuk menyesuaikan lokasi. Koordinat juga dapat diketik di bawah.</p>
                 <p class="form-help location-map-status" data-location-map-status role="status">Memuat peta…</p>
                 <button class="button location-map-retry" type="button" data-location-map-retry hidden>Coba lagi peta</button>

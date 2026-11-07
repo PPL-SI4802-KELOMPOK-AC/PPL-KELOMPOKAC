@@ -10,16 +10,16 @@ const administrationStatus = document.querySelector('[data-administration-status
 const administrationRetry = document.querySelector('[data-administration-retry]');
 const mapRetry = document.querySelector('[data-location-map-retry]');
 const centerButton = document.querySelector('[data-location-center]');
-const homeButton = document.querySelector('[data-location-home]');
+
 const clearButton = document.querySelector('[data-location-clear]');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const events = new AbortController();
 const collections = new Map();
 let villages = JSON.parse(document.querySelector('[data-location-villages]').textContent);
 let administrationAbort, geometryAbort, marker, villageLayer, tileLayer;
-let boundaryLayer, boundaryReady = false, tilesFailed = false, disposed = false;
+let boundaryLayer, maskLayer, boundaryReady = false, tilesFailed = false, disposed = false;
 let homeBounds = L.latLngBounds([[-7.85, 106.35], [-5.9, 108.85]]);
-const map = L.map(mapElement, { minZoom: 5, maxZoom: 19, zoomAnimation: !reducedMotion.matches });
+const map = L.map(mapElement, { minZoom: 5, maxZoom: 19, maxBounds: homeBounds.pad(.1), maxBoundsViscosity: 1, zoomSnap: .25, zoomAnimation: !reducedMotion.matches });
 map.zoomControl.setPosition('topright');
 const icon = L.divIcon({ className: 'location-point-icon', html: '<span></span>', iconSize: [30, 36], iconAnchor: [13, 30] });
 
@@ -67,14 +67,35 @@ function choosePoint(point) {
     fields.longitude.value = point.lng.toFixed(7);
     syncPoint();
 }
-function home() { map.fitBounds(homeBounds, { padding: [16, 16], animate: false }); }
+function updateProvinceViewport() {
+    map.setMaxBounds(homeBounds.pad(.1));
+    map.setMinZoom(Math.max(5, map.getBoundsZoom(homeBounds, false, L.point(32, 32))));
+}
+function home() {
+    updateProvinceViewport();
+    map.fitBounds(homeBounds, { padding: [16, 16], animate: false });
+}
 async function loadBoundary() {
     try {
         const boundary = await json(mapElement.dataset.boundaryUrl, events.signal);
         if (disposed) return;
-        boundaryLayer?.remove();
+        if (!['Polygon', 'MultiPolygon'].includes(boundary.geometry?.type)) throw new Error('Batas tidak valid.');
+        boundaryLayer?.remove(); maskLayer?.remove();
         boundaryLayer = L.geoJSON(boundary, { interactive: false, style: { color: '#527c82', weight: 1.5, fillOpacity: .03 } }).addTo(map);
+        const polygons = boundary.geometry.type === 'Polygon' ? [boundary.geometry.coordinates] : boundary.geometry.coordinates;
+        const maskRings = [[[-85, -180], [85, -180], [85, 180], [-85, 180]]];
+        polygons.forEach(polygon => polygon.forEach(ring => maskRings.push(ring.map(([lng, lat]) => [lat, lng]))));
+        if (!map.getPane('location-province-mask')) {
+            map.createPane('location-province-mask');
+            map.getPane('location-province-mask').style.zIndex = 350;
+            map.getPane('location-province-mask').style.pointerEvents = 'none';
+        }
+        maskLayer = L.polygon(maskRings, {
+            pane: 'location-province-mask', interactive: false, stroke: false,
+            fillColor: '#e6eff2', fillOpacity: 1, fillRule: 'evenodd',
+        }).addTo(map);
         homeBounds = boundaryLayer.getBounds();
+        updateProvinceViewport();
         boundaryReady = true;
         if (!coordinates() && !fields.desa.value) home();
         if (!tilesFailed) mapStatus.textContent = 'Peta siap. Klik pada lokasi yang diajukan.';
@@ -171,18 +192,21 @@ for (const field of ['latitude', 'longitude']) {
 }
 map.on('click', event => choosePoint(event.latlng));
 centerButton.addEventListener('click', () => choosePoint(map.getCenter()), { signal: events.signal });
-homeButton.addEventListener('click', home, { signal: events.signal });
+
 clearButton.addEventListener('click', clearPoint, { signal: events.signal });
 administrationRetry.addEventListener('click', loadAdministration, { signal: events.signal });
 mapRetry.addEventListener('click', () => {
     mapRetry.hidden = true;
     loadTiles(); loadBoundary(); showVillage(!coordinates());
 }, { signal: events.signal });
-const resize = new ResizeObserver(() => map.invalidateSize({ animate: false, pan: false }));
+const resize = new ResizeObserver(() => {
+    map.invalidateSize({ animate: false, pan: false });
+    updateProvinceViewport();
+});
 resize.observe(mapElement);
 fields.kabupaten.disabled = false;
 home(); loadTiles(); loadBoundary();
-centerButton.disabled = false; homeButton.disabled = false;
+centerButton.disabled = false;
 if (coordinates()) syncPoint(true);
 if (fields.desa.value) showVillage(!coordinates());
 window.addEventListener('pagehide', () => {
