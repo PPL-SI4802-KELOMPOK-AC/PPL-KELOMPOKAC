@@ -43,7 +43,7 @@ class PengajuanHistoryTest extends TestCase
             $table->unsignedBigInteger('wilayah_id')->nullable();
             $table->string('ringkasan_pengajuan');
             $table->enum('status_terkini', ['draft', 'diajukan', 'diperiksa', 'diverifikasi', 'diproses', 'selesai', 'ditolak']);
-            $table->timestamp('status_diperbarui_pada')->useCurrent();
+            $table->timestamp('status_diperbarui_pada')->nullable()->useCurrent();
         });
 
         Schema::create('lokasi_pengajuan', function (Blueprint $table) {
@@ -132,6 +132,63 @@ class PengajuanHistoryTest extends TestCase
             ->assertDontSee('Timeline');
     }
 
+    public function test_history_shows_latest_database_status_for_owned_application_only(): void
+    {
+        $owner = $this->user();
+        $other = $this->user();
+        $owned = $this->pengajuan($owner, 'PLTS-OWN-STATUS-001', 'diajukan');
+        $foreign = $this->pengajuan($other, 'PLTS-OTHER-STATUS-001', 'diajukan');
+
+        $this->actingAs($owner);
+
+        foreach ([
+            'diperiksa' => 'Diperiksa',
+            'diverifikasi' => 'Diverifikasi',
+            'selesai' => 'Selesai',
+        ] as $status => $label) {
+            DB::table('pengajuan_plts')
+                ->where('id', $owned->id)
+                ->update(['status_terkini' => $status]);
+
+            $this->get(route('pengajuan.riwayat'))
+                ->assertOk()
+                ->assertSee('PLTS-OWN-STATUS-001')
+                ->assertSee('data-history-status="'.$status.'"', false)
+                ->assertSee($label)
+                ->assertDontSee('PLTS-OTHER-STATUS-001');
+        }
+
+        $this->assertSame('diajukan', $foreign->fresh()->status_terkini);
+    }
+
+    public function test_history_shows_status_updated_timestamp_in_indonesian_date_time_format(): void
+    {
+        $owner = $this->user();
+        $pengajuan = $this->pengajuan($owner, 'PLTS-STATUS-TIME-001');
+        $pengajuan->status_diperbarui_pada = '2026-11-07 14:35:00';
+        $pengajuan->save();
+
+        $this->actingAs($owner)->get(route('pengajuan.riwayat'))
+            ->assertOk()
+            ->assertSee('PLTS-STATUS-TIME-001')
+            ->assertSee('Diperbarui:')
+            ->assertSee('07 Nov 2026, 14:35');
+    }
+
+    public function test_history_handles_null_status_updated_timestamp(): void
+    {
+        $owner = $this->user();
+        $pengajuan = $this->pengajuan($owner, 'PLTS-STATUS-TIME-NULL-001');
+        DB::table('pengajuan_plts')
+            ->where('id', $pengajuan->id)
+            ->update(['status_diperbarui_pada' => null]);
+
+        $this->actingAs($owner)->get(route('pengajuan.riwayat'))
+            ->assertOk()
+            ->assertSee('PLTS-STATUS-TIME-NULL-001')
+            ->assertSee('Waktu pembaruan tidak tersedia');
+    }
+
     public function test_submission_date_comes_from_initial_history_and_missing_date_is_last(): void
     {
         $owner = $this->user();
@@ -144,9 +201,10 @@ class PengajuanHistoryTest extends TestCase
         $this->actingAs($owner)->get(route('pengajuan.riwayat'))
             ->assertOk()
             ->assertSeeInOrder(['PLTS-DATE-NEW', 'PLTS-DATE-OLD', 'PLTS-DATE-MISSING'])
+            ->assertSee('28 Okt 2026')
+            ->assertSee('20 Okt 2026')
             ->assertSee('Tanggal tidak tersedia')
-            ->assertSee('2026')
-            ->assertDontSee('2020');
+            ->assertSee('2026');
     }
 
     public function test_location_uses_catalog_names_and_falls_back_to_saved_address(): void
