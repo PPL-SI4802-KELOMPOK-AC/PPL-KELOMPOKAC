@@ -15,7 +15,7 @@ class DashboardTest extends TestCase
         DB::shouldReceive('connection')->never();
         $this->get('/')->assertOk()->assertSee('Kenali kebutuhan listrik desa.')
             ->assertSee('Bagaimana TerangDesa bekerja?')->assertSee('Energi Bersih dan Terjangkau')
-            ->assertSee(route('wilayah.map'))->assertSee(route('wilayah.index'))->assertSee('#cara-kerja', false)
+            ->assertSee(route('wilayah.map'))->assertSee(route('login'))->assertDontSee(route('wilayah.index'))->assertSee('#cara-kerja', false)
             ->assertSee('data-summary-url', false)->assertDontSee('ambient__cursor');
         $this->get('/')->assertSee('KK belum berlistrik')->assertSee('KK sudah berlistrik')
             ->assertSee('Sebaran KK Belum Berlistrik')->assertDontSee('Wilayah dengan kondisi listrik diisi');

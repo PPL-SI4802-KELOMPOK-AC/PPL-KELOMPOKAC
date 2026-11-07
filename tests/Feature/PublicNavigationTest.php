@@ -68,7 +68,7 @@ class PublicNavigationTest extends TestCase
 
     public function test_login_lands_on_existing_routes_for_each_role(): void
     {
-        foreach (['masyarakat' => '/pengajuan/lokasi', 'pemerintah' => '/pemerintah/wilayah', 'admin' => '/'] as $role => $path) {
+        foreach (['masyarakat' => '/pengajuan/lokasi', 'pemerintah' => '/pemerintah/wilayah', 'admin' => '/admin/ringkasan'] as $role => $path) {
             $this->user($role);
             $this->post('/login', ['email' => $role.'@example.test', 'password' => 'navigation-password'])->assertRedirect($path);
             $this->post('/logout');
