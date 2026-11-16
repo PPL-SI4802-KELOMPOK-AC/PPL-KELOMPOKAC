@@ -60,7 +60,7 @@ class PengajuanCompleteness
             return is_numeric($latitude) && is_numeric($longitude)
                 && (float) $latitude >= -90 && (float) $latitude <= 90
                 && (float) $longitude >= -180 && (float) $longitude <= 180;
-        }
+        } 
 
         return true;
     }
