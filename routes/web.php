@@ -1,5 +1,9 @@
 <?php
 
+use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminActivityController;
+use App\Http\Middleware\RequireAdmin;
 use App\Http\Controllers\BuktiPengajuanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LoginController;
@@ -11,6 +15,17 @@ use App\Http\Controllers\WilayahController;
 use App\Http\Middleware\RequireMasyarakat;
 use App\Http\Middleware\RequirePemerintah;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('admin')->name('admin.')->middleware(RequireAdmin::class)->group(function () {
+    Route::get('/', fn () => redirect()->route('admin.dashboard'))->name('index');
+    Route::get('/ringkasan', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/aktivitas', [AdminActivityController::class, 'index'])->name('activities.index');
+    Route::get('/pengguna', [AdminUserController::class, 'index'])->name('users.index');
+    Route::get('/pengguna/tambah', [AdminUserController::class, 'create'])->name('users.create');
+    Route::post('/pengguna', [AdminUserController::class, 'store'])->middleware('throttle:admin-users')->name('users.store');
+    Route::get('/pengguna/{managedUser}/edit', [AdminUserController::class, 'edit'])->whereNumber('managedUser')->name('users.edit');
+    Route::put('/pengguna/{managedUser}', [AdminUserController::class, 'update'])->middleware('throttle:admin-users')->whereNumber('managedUser')->name('users.update');
+});
 
 Route::get('/', function () {
     return view('welcome');

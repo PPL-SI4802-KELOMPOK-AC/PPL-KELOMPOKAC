@@ -1,4 +1,5 @@
 import './bootstrap';
+import './admin-users';
 
 const submissionForm = document.querySelector('[data-submission-form]');
 if (submissionForm) {
@@ -60,7 +61,7 @@ if (document.querySelector('[data-dashboard]')) {
     });
 }
 
-if (document.body.classList.contains('admin-page')) {
+if (document.querySelector('#sidebar, [data-region-manager]')) {
     import('./region-manage').catch(() => {
         const status = document.querySelector('[data-list-status]');
         if (status) status.textContent = 'Antarmuka gagal dimuat. Muat ulang halaman untuk mencoba kembali.';

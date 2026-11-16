@@ -141,6 +141,14 @@
                                 @else
                                     &mdash;
                                 @endif
+                                <small class="history-status-updated">
+                                    Diperbarui:
+                                    @if(! empty($pengajuan->status_diperbarui_pada))
+                                        {{ \Illuminate\Support\Carbon::parse($pengajuan->status_diperbarui_pada)->locale('id')->translatedFormat('d M Y, H:i') }}
+                                    @else
+                                        Waktu pembaruan tidak tersedia
+                                    @endif
+                                </small>
                             </td>
                             <td>
                                 <div class="row-actions">

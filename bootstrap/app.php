@@ -11,12 +11,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->web(append: [\App\Http\Middleware\EnsureAccountIsActive::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Jangan kirim SQL, stack trace, atau konfigurasi koneksi ke halaman pengelola.
         $exceptions->render(function (Illuminate\Database\QueryException $exception, Illuminate\Http\Request $request) {
-            if ($request->is('pemerintah/wilayah*', 'pengajuan/lokasi*', 'login')) {
+            if ($request->is('pemerintah/wilayah*', 'pengajuan/lokasi*', 'login', 'admin', 'admin/*')) {
                 $message = 'Database belum dapat diakses. Periksa layanan MySQL dan konfigurasi koneksi, lalu coba kembali.';
 
                 return $request->expectsJson()
