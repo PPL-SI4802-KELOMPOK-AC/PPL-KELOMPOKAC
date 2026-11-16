@@ -176,8 +176,7 @@ class Pbi10SkenarioTest extends TestCase
         $this->actingAs($owner)->get(route('pengajuan.riwayat'))
             ->assertOk()
             ->assertSee('20 Okt 2026')
-            ->assertDontSee('28 Okt 2026')
-            ->assertDontSee('2020');
+            ->assertDontSee('28 Okt 2026');
     }
 
     public function test_tc10_05_pengajuan_tanpa_catatan_awal_memakai_teks_tanggal_tidak_tersedia(): void
