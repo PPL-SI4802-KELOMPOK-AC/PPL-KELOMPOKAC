@@ -5,9 +5,8 @@ pengajuan dan pemantauan kebutuhan PLTS untuk kelompok warga.
 
 ## Menjalankan aplikasi
 
-Gunakan PHP 8.3+ untuk pemasangan seluruh development tools pada composer.lock,
-Composer, Node.js, dan npm. Aplikasi juga telah diuji pada PHP 8.2.12 dengan
-Laravel 12.69, pdo_mysql/mysqlnd, dan OpenSSL. Pint pada lock memerlukan PHP 8.3.
+Gunakan PHP 8.2+, Composer, Node.js, dan npm. Aplikasi telah diuji pada PHP 8.2.12
+dengan Laravel 12.72, pdo_mysql/mysqlnd, dan OpenSSL.
 
 ```powershell
 composer install
@@ -134,6 +133,10 @@ $env:PBI01_MYSQL_TESTS='1'
 php artisan test
 npx.cmd playwright test
 Remove-Item Env:PBI01_MYSQL_TESTS
+# Sekali saja: siapkan scaffolding Dusk dan ChromeDriver
+php artisan dusk:install
+# Jalankan setelah server lokal di APP_URL aktif
+php artisan dusk
 ```
 
 Pengujian backend membuat fixture dalam transaksi dan rollback. Pengujian browser
@@ -142,6 +145,7 @@ Pengujian tidak menjalankan migrasi atau impor ulang. Jalankan suite database se
 berurutan. Chrome terpasang digunakan Playwright dengan tile fixture pada suite normal.
 Uji tile asli bersifat opt-in melalui `MAP_LIVE_TILES=1`. Screenshot dan trace berada
 di `test-results/`, diabaikan Git. Pemeriksaan mobile menggunakan emulasi Chrome.
+Dusk memakai Chrome lokal dalam mode headless untuk tes PHP di `tests/Browser`.
 
 `php artisan terangdesa:tidb-check --write-test` memeriksa koneksi, database aktif,
 TLS sesi, jumlah data, serta tulis/baca dalam transaksi yang di-rollback.
