@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'snapshot_cache_store' => env('MAP_SNAPSHOT_CACHE_STORE', 'file'),
     // Public tile configuration only; never put database or secret service keys here.
     'tile_url' => env('MAP_TILE_URL', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
     'attribution' => env('MAP_ATTRIBUTION', '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'),

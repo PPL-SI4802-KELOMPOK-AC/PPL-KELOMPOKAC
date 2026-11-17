@@ -33,7 +33,32 @@ class RegionMapController extends Controller
             $filters['bbox'] = $parts;
         }
         try {
-            return response()->json($map->response($filters))->header('Cache-Control', 'no-store');
+            // Temporary local diagnostics; do not log queries or their bindings.
+            $measure = app()->environment('local');
+            $queryMs = 0;
+            $queryCount = 0;
+
+            if ($measure) {
+                \Illuminate\Support\Facades\DB::listen(
+                    function ($query) use (&$queryMs, &$queryCount) {
+                        $queryMs += $query->time;
+                        $queryCount++;
+                    }
+                );
+            }
+
+            $start = microtime(true);
+            $data = $map->response($filters);
+
+            if ($measure) {
+                logger()->debug('Pengukuran data peta', [
+                    'total_ms' => round((microtime(true) - $start) * 1000, 2),
+                    'query_ms' => round($queryMs, 2),
+                    'query_count' => $queryCount,
+                ]);
+            }
+
+            return response()->json($data)->header('Cache-Control', 'no-store');
         } catch (\Throwable $exception) {
             report($exception);
 

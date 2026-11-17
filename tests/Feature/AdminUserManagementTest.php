@@ -15,6 +15,7 @@ class AdminUserManagementTest extends TestCase
     {
         parent::setUp();
         config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:',
+            'map.snapshot_cache_store' => 'array',
             'app.key' => 'base64:'.base64_encode(str_repeat('a', 32))]);
         DB::purge('sqlite');
         $this->withoutVite();
@@ -25,6 +26,7 @@ class AdminUserManagementTest extends TestCase
         });
         Schema::create('wilayah', function (Blueprint $table) {
             $table->id(); $table->string('nama_wilayah');
+            $table->integer('jumlah_kk_terdampak')->nullable();
         });
         Schema::create('pengajuan_plts', function (Blueprint $table) {
             $table->id(); $table->string('status_terkini');
