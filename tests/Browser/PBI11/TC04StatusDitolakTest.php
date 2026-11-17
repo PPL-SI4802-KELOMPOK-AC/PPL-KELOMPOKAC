@@ -9,6 +9,7 @@ class TC04StatusDitolakTest extends PBI11TestCase
 {
     /**
      * ID TC: TC-11-04
+     * Pemetaan: skenario status pengajuan legacy, di luar Jira autentikasi PBI-11/PBI-12 terbaru.
      * Skenario: Memastikan status Ditolak dan catatan alasan ditampilkan.
      * Kondisi awal: Pemilik memiliki pengajuan dengan status ditolak.
      * Hasil yang diharapkan: Badge Ditolak dan catatan alasan tampil.
@@ -34,13 +35,17 @@ class TC04StatusDitolakTest extends PBI11TestCase
         ]);
 
         $this->browse(function (Browser $browser) {
-            $this->login($browser, 'pemohon-pbi11@example.test');
+            try {
+                $this->login($browser, 'pemohon-pbi11@example.test');
 
-            $browser->visit(route('pengajuan.terkirim', [
-                'pengajuan' => $this->fixture['pengajuan'],
-            ]))
-                ->assertSee('Ditolak')
-                ->assertSee('Dokumen persyaratan tidak lengkap.');
+                $browser->visit(route('pengajuan.terkirim', [
+                    'pengajuan' => $this->fixture['pengajuan'],
+                ]))->pause(2000)
+                    ->assertSee('Ditolak')
+                    ->assertSee('Dokumen persyaratan tidak lengkap.');
+            } finally {
+                $browser->pause(3000);
+            }
         });
     }
 }

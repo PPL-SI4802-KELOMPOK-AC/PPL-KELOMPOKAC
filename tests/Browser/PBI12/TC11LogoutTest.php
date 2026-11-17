@@ -10,20 +10,24 @@ class TC11LogoutTest extends PBI12TestCase
     public function test_tc_pbi12_11_logout(): void
     {
         $this->browse(function (Browser $browser) {
-            $this->clearBrowserSession($browser);
+            try {
+                $this->clearBrowserSession($browser);
 
-            $this->login(
-                $browser,
-                'masyarakat.uji@example.test',
-                self::PASSWORD_MASYARAKAT
-            );
+                $this->login(
+                    $browser,
+                    'masyarakat.uji@example.test',
+                    self::PASSWORD_MASYARAKAT
+                );
 
-            $browser->assertPathIs('/peta-wilayah')
-                ->click('form[action$="/logout"] button[type="submit"]')
-                ->waitForLocation('/login')
-                ->assertPathIs('/login')
-                ->visit('/pengajuan/riwayat')
-                ->assertPathIs('/login');
+                $browser->assertPathIs('/peta-wilayah')
+                    ->pause(2000)->click('form[action$="/logout"] button[type="submit"]')->pause(2000)
+                    ->waitForLocation('/login')
+                    ->assertPathIs('/login')
+                    ->visit('/pengajuan/riwayat')->pause(2000)
+                    ->assertPathIs('/login');
+            } finally {
+                $browser->pause(3000);
+            }
         });
     }
 }

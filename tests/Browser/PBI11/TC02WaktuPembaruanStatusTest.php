@@ -3,16 +3,16 @@
 namespace Tests\Browser\PBI11;
 
 use Illuminate\Support\Facades\DB;
+use Laravel\Dusk\Browser;
 
 class TC02WaktuPembaruanStatusTest extends PBI11TestCase
 {
     /**
      * ID TC: TC-11-02
+     * Pemetaan: skenario status pengajuan legacy, di luar Jira autentikasi PBI-11/PBI-12 terbaru.
      * Skenario: Memastikan tiga catatan riwayat fixture berurutan secara kronologis.
      * Kondisi awal: Pemilik memiliki pengajuan dengan tiga catatan riwayat.
-     * Hasil yang diharapkan: Data SQLite terurut berdasarkan created_at ascending.
-     * Catatan: Halaman bukti pengiriman saat ini tidak menampilkan catatan riwayat,
-     * sehingga test ini memverifikasi urutan data fixture, bukan tampilan UI.
+     * Hasil yang diharapkan: Tiga catatan tampil kronologis pada halaman pengajuan.
      */
     public function test_three_status_history_notes_are_ordered_by_created_at(): void
     {
@@ -26,6 +26,14 @@ class TC02WaktuPembaruanStatusTest extends PBI11TestCase
             'catatan' => 'Dokumen telah diverifikasi.',
             'created_at' => '2026-11-17 10:00:00',
         ]);
+
+        // Catatan terakhir dan ringkasan pengajuan harus menggambarkan status yang sama.
+        DB::table('pengajuan_plts')
+            ->where('id', $this->fixture['pengajuan'])
+            ->update([
+                'status_terkini' => 'diverifikasi',
+                'status_diperbarui_pada' => '2026-11-17 10:00:00',
+            ]);
 
         $history = DB::table('riwayat_status_pengajuan')
             ->where('pengajuan_id', $this->fixture['pengajuan'])
@@ -51,5 +59,26 @@ class TC02WaktuPembaruanStatusTest extends PBI11TestCase
                 'catatan' => 'Dokumen telah diverifikasi.',
             ],
         ], $history);
+
+        $this->browse(function (Browser $browser) {
+            try {
+                $this->login($browser, 'pemohon-pbi11@example.test');
+                $browser->visit(route('pengajuan.terkirim', $this->fixture['pengajuan']))->pause(2000);
+                $text = $browser->script('return document.body.innerText;')[0];
+                $previous = -1;
+                foreach ([
+                    'Pengajuan berhasil dikirim.',
+                    'Pengajuan sedang diperiksa.',
+                    'Dokumen telah diverifikasi.',
+                ] as $note) {
+                    $position = strpos($text, $note);
+                    $this->assertNotFalse($position, 'Catatan riwayat tidak tampil: '.$note);
+                    $this->assertGreaterThan($previous, $position);
+                    $previous = $position;
+                }
+            } finally {
+                $browser->pause(3000);
+            }
+        });
     }
 }

@@ -12,22 +12,25 @@ class TC06PengajuanTidakDitemukanTest extends PBI11TestCase
      * Kondisi awal: Pengguna sudah login.
      * Hasil yang diharapkan: Sistem menampilkan halaman 404.
      */
-
     public function test_nonexistent_submission_returns_404(): void
     {
         $this->browse(function (Browser $browser) {
-            $this->login($browser, 'pemohon-pbi11@example.test');
-            $browser->assertPathIs('/peta-wilayah');
+            try {
+                $this->login($browser, 'pemohon-pbi11@example.test');
+                $browser->assertPathIs('/peta-wilayah');
 
-            $browser->visit('/pengajuan/lokasi/terkirim/999999')
-                ->assertDontSee('PLTS-PBI11-001');
+                $browser->visit('/pengajuan/lokasi/terkirim/999999')->pause(2000)
+                    ->assertDontSee('PLTS-PBI11-001');
 
-            $this->assertSame(
-                404,
-                $browser->driver->executeScript(
-                    'return window.performance.getEntriesByType("navigation")[0].responseStatus'
-                )
-            );
+                $this->assertSame(
+                    404,
+                    $browser->driver->executeScript(
+                        'return window.performance.getEntriesByType("navigation")[0].responseStatus'
+                    )
+                );
+            } finally {
+                $browser->pause(3000);
+            }
         });
     }
 }
