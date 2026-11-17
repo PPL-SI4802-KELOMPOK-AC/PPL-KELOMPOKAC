@@ -111,7 +111,7 @@ trait PBI09DuskSupport
     protected function driver(): RemoteWebDriver
     {
         $options = (new ChromeOptions)->addArguments([
-            '--disable-gpu', '--headless=new', '--window-size=1920,1080',
+            '--disable-gpu', '--window-size=1920,1080',
             '--disable-smooth-scrolling', '--blink-settings=imagesEnabled=false',
         ]);
 
