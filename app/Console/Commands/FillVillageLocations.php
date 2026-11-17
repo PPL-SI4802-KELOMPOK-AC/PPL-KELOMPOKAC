@@ -71,6 +71,7 @@ class FillVillageLocations extends Command
                         if ($row !== $before) throw new RuntimeException('Atribut di luar rencana berubah.');
                     }
                     $db->commit();
+                    \App\Services\Map\MapSnapshotCache::invalidate();
                 } else {
                     $db->rollBack();
                 }

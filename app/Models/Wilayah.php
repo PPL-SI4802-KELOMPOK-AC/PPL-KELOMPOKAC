@@ -6,6 +6,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class Wilayah extends Model
 {
+    protected static function booted(): void
+    {
+        $invalidate = function (self $region) {
+            $connection = $region->getConnection();
+            $callback = fn () => \App\Services\Map\MapSnapshotCache::invalidate();
+            if ($connection->transactionLevel() > 0) {
+                $connection->afterCommit($callback);
+            } else {
+                $callback();
+            }
+        };
+        static::saved($invalidate);
+        static::deleted($invalidate);
+    }
+
     protected $table = 'wilayah';
 
     public $timestamps = false;

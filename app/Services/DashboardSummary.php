@@ -3,10 +3,16 @@
 namespace App\Services;
 
 use App\Models\Wilayah;
+use App\Services\Map\MapSnapshotCache;
 
 class DashboardSummary
 {
     public function data(): array
+    {
+        return MapSnapshotCache::rememberSummary(fn () => $this->build());
+    }
+
+    private function build(): array
     {
         // One grouped query; no manual condition or guessed electrified-family count.
         $expression = "CASE WHEN jumlah_kk_terdampak IS NULL THEN 'unavailable'

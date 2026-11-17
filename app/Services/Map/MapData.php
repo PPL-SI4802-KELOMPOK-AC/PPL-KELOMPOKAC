@@ -22,87 +22,53 @@ class MapData
 
     public function response(array $filters): array
     {
-        $boundary = $this->boundary();
-        if (! isset($boundary['geometry']) || ! in_array($boundary['geometry']['type'], ['Polygon', 'MultiPolygon'], true)) {
-            throw new RuntimeException('Geometri batas Jawa Barat tidak valid.');
-        }
-        $districts = [];
-        $records = [];
-        $periods = [];
-        $excluded = 0;
-        // Hanya atribut referensi publik. Identitas pembuat dan kredensial tidak diserialisasi.
-        foreach (Wilayah::query()->select(['id', 'kode_referensi', 'nama_wilayah', 'alamat_deskriptif',
-            'latitude', 'longitude', 'kondisi_listrik', 'jumlah_kk_terdampak', 'sumber_data', 'data_per_tanggal'])->orderBy('nama_wilayah')->orderBy('id')->cursor() as $region) {
-            $administration = $this->administration($region);
-            $point = null;
-            $reason = 'Koordinat wilayah belum tersedia pada database.';
-            if ($region->latitude !== null || $region->longitude !== null) {
-                if ($region->latitude !== null && $region->longitude !== null
-                    && is_numeric($region->latitude) && is_numeric($region->longitude)
-                    && abs((float) $region->latitude) <= 90 && abs((float) $region->longitude) <= 180
-                    && Geometry::contains($boundary['geometry'], [(float) $region->longitude, (float) $region->latitude])) {
-                    $point = [(float) $region->longitude, (float) $region->latitude];
-                } else {
-                    // Jangan menutupi koordinat manual yang bermasalah dengan titik sumber lain.
-                    $reason = 'Koordinat tersimpan tidak lengkap, tidak valid, atau berada di luar batas referensi Jawa Barat.';
-                }
-            }
-            $validCode = (bool) preg_match('/^32\.\d{2}\.\d{2}\.\d{4}$/', (string) $region->kode_referensi);
-            if (! $validCode && ! $point && $administration['province_name'] !== 'JAWA BARAT') {
-                $excluded++;
+        $started = hrtime(true);
+        $cacheHit = false;
+        $snapshot = MapSnapshotCache::remember(fn () => $this->buildSnapshot(), $cacheHit);
+        $snapshotMs = (hrtime(true) - $started) / 1e6;
+        $districts = $snapshot['districts'];
+        $excluded = $snapshot['excluded'];
+        $records = $periods = [];
+        foreach ($snapshot['records'] as $record) {
+            if (($filters['q'] ?? '') !== '' && mb_stripos($record['name'].' '.$record['address'], $filters['q']) === false) {
                 continue;
             }
-            if ($administration['district_code'] && $administration['district_name']) {
-                $districts[$administration['district_code']] = ['code' => $administration['district_code'], 'name' => $administration['district_name']];
-            }
-            $conditionRecorded = array_key_exists((string) $region->kondisi_listrik, config('wilayah.kondisi_listrik'));
-            $families = $region->jumlah_kk_terdampak;
-            $category = $families === null ? 'unavailable' : ($families > 0 ? 'has_unserved' : 'no_unserved');
-            $year = $this->dataYear($region);
-            $record = [
-                'id' => $region->id, 'code' => $region->kode_referensi, 'name' => $region->nama_wilayah,
-                'address' => $region->alamat_deskriptif,
-                'government' => [
-                    'condition' => $region->kondisi_listrik,
-                    'condition_label' => config('wilayah.kondisi_listrik')[$region->kondisi_listrik] ?? ($region->kondisi_listrik ?: 'Belum diisi'),
-                    'condition_recorded' => $conditionRecorded, 'affected_kk' => $region->jumlah_kk_terdampak,
-                    'observation_date' => $region->data_per_tanggal, 'source' => $region->sumber_data,
-                ],
-                'administration' => $administration,
-                'electricity' => [
-                    'unserved_families' => $families, 'pln_families' => null,
-                    'year' => $year, 'unit' => 'keluarga', 'source' => $region->sumber_data,
-                ],
-                'category' => $category,
-                'location' => $point ? [
-                    'coordinates' => $point, 'type' => 'village_reference', 'label' => 'Lokasi referensi desa',
-                    'source' => 'database', 'source_label' => 'Koordinat referensi tersimpan pada database aplikasi',
-                ] : null,
-                'location_unavailable_reason' => $point ? null : $reason,
-            ];
-            if (($filters['q'] ?? '') !== '' && mb_stripos($region->nama_wilayah.' '.$region->alamat_deskriptif, $filters['q']) === false) {
-                continue;
-            }
-            if (! empty($filters['kabupaten']) && $administration['district_code'] !== $filters['kabupaten']) {
+            if (! empty($filters['kabupaten']) && $record['administration']['district_code'] !== $filters['kabupaten']) {
                 continue;
             }
             $condition = $filters['condition'] ?? 'all';
-            if ($condition !== 'all' && $category !== $condition) {
+            if ($condition !== 'all' && $record['category'] !== $condition) {
                 continue;
             }
             $location = $filters['location'] ?? 'all';
-            if (($location === 'available' && ! $point) || ($location === 'missing' && $point)) {
+            if (($location === 'available' && ! $record['location']) || ($location === 'missing' && $record['location'])) {
                 continue;
             }
             $records[] = $record;
+            $year = $record['electricity']['year'];
             if ($year !== null) $periods[$year] = $year;
         }
+        $groupStarted = hrtime(true);
         $located = array_values(array_filter($records, fn ($r) => $r['location'] !== null));
         uasort($districts, fn ($a, $b) => strcmp($a['name'], $b['name']));
         sort($periods);
         $total = count($records);
         $page = min(max(1, (int) ($filters['page'] ?? 1)), max(1, (int) ceil($total / 15)));
         $features = $this->cluster($located, (int) ($filters['zoom'] ?? 8), $filters['bbox'] ?? null);
+
+        $groupMs = (hrtime(true) - $groupStarted) / 1e6;
+        $areasStarted = hrtime(true);
+        $areas = app(MapAreas::class)->response($records, $filters['kabupaten'] ?? null);
+        $areasMs = (hrtime(true) - $areasStarted) / 1e6;
+        if (app()->environment('local')) {
+            logger()->debug('Cache data peta', [
+                'snapshot_cache_hit' => $cacheHit,
+                'snapshot_ms' => round($snapshotMs, 2),
+                'group_and_cluster_ms' => round($groupMs, 2),
+                'areas_ms' => round($areasMs, 2),
+                'rows_matched' => count($records),
+            ]);
+        }
 
         return [
             'summary' => [
@@ -116,11 +82,102 @@ class MapData
             'data' => ['source' => 'Database aplikasi', 'periods' => array_values($periods),
                 'outside_or_unknown_province' => $excluded, 'unavailable_fields' => ['pln_families']],
             'kabupaten' => array_values($districts),
-            'areas' => app(MapAreas::class)->response($records, $filters['kabupaten'] ?? null),
+            'areas' => $areas,
             'features' => $features,
             'list' => ['data' => array_slice($records, ($page - 1) * 15, 15), 'total' => $total, 'current_page' => $page,
                 'last_page' => max(1, (int) ceil($total / 15)), 'per_page' => 15],
         ];
+    }
+
+    private function buildSnapshot(): array
+    {
+        $measure = app()->environment('local');
+        $started = hrtime(true);
+        $boundary = $this->boundary();
+        $boundaryMs = (hrtime(true) - $started) / 1e6;
+        $bodyMs = $administrationMs = $coordinatesMs = 0;
+        $rowsRead = 0;
+        if (! isset($boundary['geometry']) || ! in_array($boundary['geometry']['type'], ['Polygon', 'MultiPolygon'], true)) {
+            throw new RuntimeException('Geometri batas Jawa Barat tidak valid.');
+        }
+        $coordinateCache = new CachedGeometry(Cache::store('file'), $boundary['geometry']);
+        $districts = [];
+        $records = [];
+        $excluded = 0;
+        // Hanya atribut referensi publik. Identitas pembuat dan kredensial tidak diserialisasi.
+        $loopStarted = hrtime(true);
+        foreach (Wilayah::query()->select(['id', 'kode_referensi', 'nama_wilayah', 'alamat_deskriptif',
+            'latitude', 'longitude', 'kondisi_listrik', 'jumlah_kk_terdampak', 'sumber_data', 'data_per_tanggal'])->orderBy('nama_wilayah')->orderBy('id')->cursor() as $region) {
+            $rowStarted = $measure ? hrtime(true) : 0;
+            $rowsRead++;
+            try {
+                $administration = $this->administration($region);
+                if ($measure) $administrationMs += (hrtime(true) - $rowStarted) / 1e6;
+                $coordinatesStarted = $measure ? hrtime(true) : 0;
+                $point = null;
+                $reason = 'Koordinat wilayah belum tersedia pada database.';
+                if ($region->latitude !== null || $region->longitude !== null) {
+                    if ($region->latitude !== null && $region->longitude !== null
+                        && is_numeric($region->latitude) && is_numeric($region->longitude)
+                        && abs((float) $region->latitude) <= 90 && abs((float) $region->longitude) <= 180
+                        && $coordinateCache->contains([(float) $region->longitude, (float) $region->latitude])) {
+                        $point = [(float) $region->longitude, (float) $region->latitude];
+                    } else {
+                        // Jangan menutupi koordinat manual yang bermasalah dengan titik sumber lain.
+                        $reason = 'Koordinat tersimpan tidak lengkap, tidak valid, atau berada di luar batas referensi Jawa Barat.';
+                    }
+                }
+                if ($measure) $coordinatesMs += (hrtime(true) - $coordinatesStarted) / 1e6;
+                $validCode = (bool) preg_match('/^32\.\d{2}\.\d{2}\.\d{4}$/', (string) $region->kode_referensi);
+                if (! $validCode && ! $point && $administration['province_name'] !== 'JAWA BARAT') {
+                    $excluded++;
+                    continue;
+                }
+                if ($administration['district_code'] && $administration['district_name']) {
+                    $districts[$administration['district_code']] = ['code' => $administration['district_code'], 'name' => $administration['district_name']];
+                }
+                $conditionRecorded = array_key_exists((string) $region->kondisi_listrik, config('wilayah.kondisi_listrik'));
+                $families = $region->jumlah_kk_terdampak;
+                $category = $families === null ? 'unavailable' : ($families > 0 ? 'has_unserved' : 'no_unserved');
+                $year = $this->dataYear($region);
+                $record = [
+                    'id' => $region->id, 'code' => $region->kode_referensi, 'name' => $region->nama_wilayah,
+                    'address' => $region->alamat_deskriptif,
+                    'government' => [
+                        'condition' => $region->kondisi_listrik,
+                        'condition_label' => config('wilayah.kondisi_listrik')[$region->kondisi_listrik] ?? ($region->kondisi_listrik ?: 'Belum diisi'),
+                        'condition_recorded' => $conditionRecorded, 'affected_kk' => $region->jumlah_kk_terdampak,
+                        'observation_date' => $region->data_per_tanggal, 'source' => $region->sumber_data,
+                    ],
+                    'administration' => $administration,
+                    'electricity' => [
+                        'unserved_families' => $families, 'pln_families' => null,
+                        'year' => $year, 'unit' => 'keluarga', 'source' => $region->sumber_data,
+                    ],
+                    'category' => $category,
+                    'location' => $point ? [
+                        'coordinates' => $point, 'type' => 'village_reference', 'label' => 'Lokasi referensi desa',
+                        'source' => 'database', 'source_label' => 'Koordinat referensi tersimpan pada database aplikasi',
+                    ] : null,
+                    'location_unavailable_reason' => $point ? null : $reason,
+                ];
+                $records[] = $record;
+            } finally {
+                if ($measure) $bodyMs += (hrtime(true) - $rowStarted) / 1e6;
+            }
+        }
+        $coordinateCache->save();
+        $loopMs = (hrtime(true) - $loopStarted) / 1e6;
+        if ($measure) {
+            logger()->debug('Pembuatan cache data peta', [
+                'boundary_ms' => round($boundaryMs, 2),
+                'read_and_hydrate_ms' => round(max(0, $loopMs - $bodyMs), 2),
+                'row_processing_ms' => round($bodyMs, 2),
+                'coordinates_ms' => round($coordinatesMs, 2),
+                'rows_read' => $rowsRead,
+            ]);
+        }
+        return compact('records', 'districts', 'excluded');
     }
 
     private function administration(Wilayah $region): array
