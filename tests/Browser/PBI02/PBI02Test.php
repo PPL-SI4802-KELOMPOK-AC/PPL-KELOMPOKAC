@@ -84,6 +84,9 @@ class PBI02Test extends DuskTestCase
                 'APP_ROUTES_CACHE' => $directory.'/pbi02-routes-'.$token.'.php',
                 'DB_CONNECTION' => 'sqlite', 'DB_DATABASE' => self::$testDatabase, 'DB_URL' => '', 'DATABASE_URL' => '',
                 'DB_FOREIGN_KEYS' => 'true', 'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'cookie',
+                // Snapshot peta mempunyai store terpisah. Fixture memakai query builder
+                // (tanpa event model), jadi tiap request harus membaca data skenario terbaru.
+                'MAP_SNAPSHOT_CACHE_STORE' => 'array',
                 'SESSION_COOKIE' => 'pbi02_dusk_'.$token, 'SESSION_SECURE_COOKIE' => 'false', 'SESSION_DOMAIN' => 'null',
                 'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array', 'BCRYPT_ROUNDS' => '4',
                 'MAP_TILE_URL' => 'http://127.0.0.1:'.$port.'/_pbi02-tiles/{z}/{x}/{y}.png',
@@ -135,6 +138,7 @@ class PBI02Test extends DuskTestCase
         parent::setUp();
         $this->assertSame('sqlite', DB::connection()->getDriverName());
         $this->assertSame(self::$testDatabase, DB::connection()->getDatabaseName());
+        $this->assertSame('array', config('map.snapshot_cache_store'));
         $this->fixture = $this->rebuildFixture();
     }
 
@@ -257,6 +261,7 @@ class PBI02Test extends DuskTestCase
     public function test_tc_01_03_database_wilayah_kosong(): void
     {
         DB::table('wilayah')->delete();
+        $this->assertDatabaseCount('wilayah', 0);
         $this->browse(function (Browser $browser) {
             $this->openMap($browser);
             $data = $this->mapData($browser);
@@ -293,6 +298,7 @@ class PBI02Test extends DuskTestCase
                 'latitude' => $latitude, 'longitude' => $longitude, 'jumlah_kk_terdampak' => 5,
             ]);
         }
+        $this->assertDatabaseCount('wilayah', 5);
         $this->browse(function (Browser $browser) use ($invalid) {
             $this->openMap($browser);
             $data = $this->mapData($browser);
@@ -336,7 +342,7 @@ class PBI02Test extends DuskTestCase
                 $this->capture($browser, 'TC-01-05-tile-gagal');
                 // Hanya jaringan tile yang diputus, data wilayah tetap benar-benar dimuat.
                 $devTools->execute('Network.setBlockedURLs', ['urls' => []]);
-                $browser->scrollIntoView('[data-map-retry]')->click('[data-map-retry]')
+                $browser->scrollIntoView('[data-map-retry]')->pause($this->stepPause())->click('[data-map-retry]')
                     ->waitUntil('document.querySelector("[data-map-panel]").dataset.state === "ready"', 20)
                     ->assertSeeIn('[data-map-status]', 'Peta dasar siap dijelajahi')
                     ->assertMissing('[data-map-retry]');
@@ -357,6 +363,7 @@ class PBI02Test extends DuskTestCase
         if ($tilesReady) {
             $browser->waitUntil('document.querySelector("[data-map-panel]").dataset.state === "ready"', 20);
         }
+        $browser->scrollIntoView('[data-region-map]')->pause($this->stepPause());
     }
 
     private function mapData(Browser $browser): array
@@ -372,7 +379,7 @@ class PBI02Test extends DuskTestCase
     /** Klik titik yang benar-benar berada di dalam polygon, bukan tengah bounding box. */
     private function clickArea(Browser $browser, string $selector): void
     {
-        $browser->scrollIntoView('[data-region-map]')->pause(500);
+        $browser->scrollIntoView('[data-region-map]')->pause(max(500, $this->stepPause()));
         $point = $browser->driver->executeScript(<<<'JS'
             const path = document.querySelector(arguments[0]);
             const box = path.getBBox(), matrix = path.getScreenCTM();
@@ -387,15 +394,24 @@ class PBI02Test extends DuskTestCase
         $browser->driver->execute(DriverCommand::ACTIONS, ['actions' => [[
             'type' => 'pointer', 'id' => 'pbi02-mouse', 'parameters' => ['pointerType' => 'mouse'],
             'actions' => [
-                ['type' => 'pointerMove', 'duration' => 100, 'origin' => 'viewport', 'x' => $point['x'], 'y' => $point['y']],
+                ['type' => 'pointerMove', 'duration' => min(600, $this->stepPause()), 'origin' => 'viewport', 'x' => $point['x'], 'y' => $point['y']],
                 ['type' => 'pointerDown', 'button' => 0], ['type' => 'pointerUp', 'button' => 0],
             ],
         ]]]);
+        $browser->pause($this->stepPause());
+    }
+
+    /** Jeda demo per langkah, dalam milidetik. Isi 0 untuk menjalankan tanpa jeda. */
+    private function stepPause(): int
+    {
+        $value = getenv('DUSK_STEP_PAUSE');
+
+        return $value !== false && ctype_digit($value) ? min((int) $value, 10000) : 2000;
     }
 
     private function capture(Browser $browser, string $name): void
     {
-        $browser->scrollIntoView('[data-region-map]')->pause((int) (getenv('PBI02_DEMO_PAUSE') ?: 1000))
+        $browser->scrollIntoView('[data-region-map]')->pause(max($this->stepPause(), (int) (getenv('PBI02_DEMO_PAUSE') ?: 1000)))
             ->screenshot('PBI02/'.$name);
         $devTools = new ChromeDevToolsDriver($browser->driver);
         $size = $devTools->execute('Page.getLayoutMetrics')['cssContentSize'];
