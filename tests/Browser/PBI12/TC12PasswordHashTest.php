@@ -2,6 +2,7 @@
 
 namespace Tests\Browser\PBI12;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class TC12PasswordHashTest extends PBI12TestCase
@@ -14,7 +15,7 @@ class TC12PasswordHashTest extends PBI12TestCase
             'pemerintah' => self::PASSWORD_PEMERINTAH,
             'admin' => self::PASSWORD_ADMIN,
         ] as $role => $password) {
-            $user = $this->fixture[$role];
+            $user = DB::table('users')->where('id', $this->fixture[$role]->id)->first();
 
             $this->assertNotSame($password, $user->password);
             $this->assertTrue(Hash::check($password, $user->password));

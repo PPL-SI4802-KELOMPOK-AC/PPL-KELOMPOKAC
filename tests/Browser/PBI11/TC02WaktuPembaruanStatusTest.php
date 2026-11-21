@@ -3,16 +3,16 @@
 namespace Tests\Browser\PBI11;
 
 use Illuminate\Support\Facades\DB;
+use Laravel\Dusk\Browser;
 
 class TC02WaktuPembaruanStatusTest extends PBI11TestCase
 {
     /**
      * ID TC: TC-11-02
-     * Skenario: Memastikan tiga catatan riwayat fixture berurutan secara kronologis.
+     * Skenario: Melihat waktu pembaruan dan tiga catatan riwayat.
      * Kondisi awal: Pemilik memiliki pengajuan dengan tiga catatan riwayat.
-     * Hasil yang diharapkan: Data SQLite terurut berdasarkan created_at ascending.
-     * Catatan: Halaman bukti pengiriman saat ini tidak menampilkan catatan riwayat,
-     * sehingga test ini memverifikasi urutan data fixture, bukan tampilan UI.
+     * Hasil yang diharapkan: Bukti menampilkan waktu pembaruan, status terkini,
+     * dan tiga catatan dalam urutan kronologis.
      */
     public function test_three_status_history_notes_are_ordered_by_created_at(): void
     {
@@ -26,6 +26,14 @@ class TC02WaktuPembaruanStatusTest extends PBI11TestCase
             'catatan' => 'Dokumen telah diverifikasi.',
             'created_at' => '2026-11-17 10:00:00',
         ]);
+
+        // Catatan terakhir dan ringkasan pengajuan harus menggambarkan status yang sama.
+        DB::table('pengajuan_plts')
+            ->where('id', $this->fixture['pengajuan'])
+            ->update([
+                'status_terkini' => 'diverifikasi',
+                'status_diperbarui_pada' => '2026-11-17 10:00:00',
+            ]);
 
         $history = DB::table('riwayat_status_pengajuan')
             ->where('pengajuan_id', $this->fixture['pengajuan'])
@@ -51,5 +59,26 @@ class TC02WaktuPembaruanStatusTest extends PBI11TestCase
                 'catatan' => 'Dokumen telah diverifikasi.',
             ],
         ], $history);
+
+        $this->assertDatabaseHas('pengajuan_plts', [
+            'id' => $this->fixture['pengajuan'],
+            'status_terkini' => 'diverifikasi',
+            'status_diperbarui_pada' => $history[2]['created_at'],
+        ]);
+
+        $this->browse(function (Browser $browser) {
+            try {
+                $this->login($browser, 'pemohon-pbi11@example.test');
+                $browser->visit(route('pengajuan.terkirim', $this->fixture['pengajuan']))->pause(2000)
+                    ->assertSeeIn('.submission-receipt', 'PLTS-PBI11-001')
+                    ->assertSeeIn('@status-terkini', 'Diverifikasi')
+                    ->assertSeeIn('.submission-receipt time', '17/11/2026 10:00')
+                    ->assertSeeIn('[data-status-history] li:nth-child(1)', 'Pengajuan berhasil dikirim.')
+                    ->assertSeeIn('[data-status-history] li:nth-child(2)', 'Pengajuan sedang diperiksa.')
+                    ->assertSeeIn('[data-status-history] li:nth-child(3)', 'Dokumen telah diverifikasi.');
+            } finally {
+                $browser->pause(3000);
+            }
+        });
     }
 }

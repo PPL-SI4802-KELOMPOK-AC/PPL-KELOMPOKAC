@@ -10,10 +10,14 @@ class TC10GuestAksesAdminTest extends PBI12TestCase
     public function test_tc_pbi12_10_pengunjung_diarahkan_ke_login(): void
     {
         $this->browse(function (Browser $browser) {
-            $this->clearBrowserSession($browser);
+            try {
+                $this->clearBrowserSession($browser);
 
-            $browser->visit('/admin/ringkasan')
-                ->assertPathIs('/login');
+                $browser->visit('/admin/ringkasan')->pause(2000)
+                    ->assertPathIs('/login');
+            } finally {
+                $browser->pause(3000);
+            }
         });
     }
 }
