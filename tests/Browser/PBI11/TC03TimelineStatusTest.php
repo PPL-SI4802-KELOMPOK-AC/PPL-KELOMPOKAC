@@ -19,7 +19,7 @@ class TC03TimelineStatusTest extends PBI11TestCase
             try {
                 $this->login($browser, 'pemohon-pbi11@example.test');
                 $browser->visit(route('pengajuan.terkirim', $this->fixture['pengajuan']))->pause(2000)
-                    ->assertSee('Diperiksa');
+                    ->assertSeeIn('@status-terkini', 'Diperiksa');
 
                 DB::table('pengajuan_plts')
                     ->where('id', $this->fixture['pengajuan'])
@@ -30,8 +30,8 @@ class TC03TimelineStatusTest extends PBI11TestCase
 
                 $browser->refresh()->pause(2000)
                     ->assertSee('PLTS-PBI11-001')
-                    ->assertSee('Diverifikasi')
-                    ->assertDontSee('Diperiksa');
+                    ->assertSeeIn('@status-terkini', 'Diverifikasi')
+                    ->assertSeeIn('[data-status-history]', 'Diperiksa');
             } finally {
                 $browser->pause(3000);
             }

@@ -1,5 +1,68 @@
 # Test case PBI-11 dan PBI-12
 
+## Skenario untuk review Jira
+
+Gunakan tabel di bagian ini untuk demo dan pengujian saat ini. Bagian audit setelahnya merekam hasil eksekusi terdahulu.
+
+### PBI 11 — Melihat status pengajuan
+
+Sebagai Masyarakat, saya ingin membuka detail pengajuan milik saya dari halaman Riwayat agar dapat melihat status terkini, waktu pembaruan, dan catatan perubahan status, termasuk alasan penolakan bila tersedia.
+
+| TC | Prasyarat | Langkah | Hasil yang diperiksa |
+|---|---|---|---|
+| TC01 | Pemilik memiliki pengajuan berstatus Diperiksa | Login → buka Riwayat → klik **Lihat detail** pada tiket miliknya | Nomor tiket, status Diperiksa, dan catatan pemeriksaan tampil |
+| TC02 | Pengajuan memiliki tiga catatan hingga Diverifikasi | Login pemilik → buka bukti pengiriman | Status dan waktu terakhir tampil. Tiga catatan tampil dari yang paling awal |
+| TC03 | Bukti pengajuan sedang terbuka dan status sudah berubah dari Diperiksa menjadi Diverifikasi di data uji | Muat ulang halaman | Ringkasan menampilkan Diverifikasi. Catatan lama Diperiksa tetap tampil di riwayat |
+| TC04 | Pengajuan berstatus Ditolak dan ada catatan alasan | Login pemilik → buka bukti pengiriman | Status Ditolak dan alasan `Dokumen persyaratan tidak lengkap.` tampil |
+| TC05 | Masyarakat lain mengetahui URL detail pengajuan | Login sebagai Masyarakat lain → buka URL tersebut | HTTP 404 |
+| TC06 | ID pengajuan tidak ada | Login sebagai Masyarakat → buka URL detail ID tersebut | HTTP 404 |
+| TC07 | Pengunjung belum login | Buka URL detail pengajuan | Dialihkan ke `/login` |
+| TC08 | Akun Pemerintah sudah login | Buka URL detail pengajuan Masyarakat | HTTP 403 |
+
+Laravel memeriksa role dan kepemilikan sebelum mengambil catatan yang terkait dengan `pengajuan_id`. Detail menampilkan `pengajuan_plts.status_terkini` dan `status_diperbarui_pada`, lalu menampilkan `riwayat_status_pengajuan` berdasarkan waktu dari yang paling awal. Pengiriman pengajuan menetapkan status awal Diajukan. Pada TC02–TC04, perubahan status disiapkan di SQLite sebagai prasyarat. Cakupan PBI ini adalah melihat status yang tersimpan. Persetujuan, penolakan, dan aturan kelayakan berdasarkan kondisi listrik belum menjadi alur keputusan di kode yang diuji.
+
+Untuk demo manual, login dengan akun Masyarakat aktif dan pilih **Riwayat → Lihat detail** pada tiket milik akun tersebut. Jika belum ada tiket, kirim pengajuan lengkap di lingkungan demo yang memiliki data uji. Gunakan tiket yang sudah memiliki status Ditolak dan catatan alasan untuk memperagakan TC04. Jangan mengubah status pengajuan warga sungguhan untuk demo.
+
+### PBI 12 — Menyiapkan autentikasi dan akses pengguna
+
+Sebagai pengguna TerangDesa, saya ingin masuk dengan akun sesuai peran agar hanya bisa menggunakan fitur yang menjadi tanggung jawab saya. Pembagian tiga peran berikut mengikuti hasil wawancara yang disebut di Jira dan route yang tersedia di aplikasi.
+
+| Peran | Tujuan login default | Akses khusus | Akses yang ditolak |
+|---|---|---|---|
+| Admin | `/admin/ringkasan` | Ringkasan admin, pengelolaan akun dan status aktifnya, serta log aktivitas | Pengelolaan wilayah Pemerintah dan pengajuan privat Masyarakat |
+| Pemerintah | `/pemerintah/wilayah` | Melihat, menambah, mengubah, dan menghapus data wilayah | Panel Admin dan pengajuan privat Masyarakat |
+| Masyarakat | `/peta-wilayah` | Membuat dan mengirim pengajuan serta membuka riwayat dan detail pengajuan sendiri | Panel Admin, pengelolaan wilayah Pemerintah, dan detail pengajuan warga lain |
+
+Beranda dan peta publik bisa dibuka semua peran maupun pengunjung tanpa sesi. Pada halaman terlindungi, pengunjung tanpa sesi diarahkan ke login dan pengguna dengan role yang salah menerima HTTP 403. Laravel memvalidasi email dan password terhadap data akun, memeriksa status aktif, lalu membuat ulang ID sesi setelah login. Jika pengguna sebelumnya meminta halaman lokal yang diizinkan bagi perannya, login dapat mengembalikannya ke halaman tersebut. Logout mengakhiri sesi dan mengarahkan ke `/login`.
+
+| TC | Langkah inti | Hasil yang diperiksa |
+|---|---|---|
+| TC01–TC03 | Login dengan satu akun aktif per role | Masing-masing tiba di tujuan login untuk perannya |
+| TC04–TC06 | Kirim password salah, email tidak terdaftar, atau form kosong | Form menampilkan pesan kesalahan dan pengguna tetap di login |
+| TC07–TC10 | Buka URL Pemerintah atau Admin dengan role yang salah atau tanpa sesi, sesuai kasus | Role yang salah mendapat HTTP 403. Pengunjung diarahkan ke `/login` |
+| TC11–TC12 | Logout lalu coba akses terlindungi kembali. Periksa hash akun fixture lewat server | Akses ulang diarahkan ke login. Password uji cocok dengan hash yang tersimpan |
+| TC13 | Ulangi validasi login serta alur buka halaman yang diizinkan, logout, dan akses ulang untuk ketiga peran | Pesan validasi sesuai. Halaman yang diizinkan terbuka, lalu sesi berakhir. Pengunjung juga diarahkan ke login |
+| TC14.1–TC14.9 | Kirim field kosong ke endpoint login dan uji enam kombinasi lintas role melalui HTTP Laravel | Validasi JSON mengembalikan HTTP 422. Akses lintas role mengembalikan HTTP 403 |
+
+Untuk demo manual, login dengan masing-masing akun aktif di lingkungan demo. Buka halaman sesuai role, lalu ketik URL yang ditolak di tabel. Klik **Keluar** dan buka kembali halaman terlindungi untuk menunjukkan bahwa sesi berakhir. TC13 Pemerintah di Chrome headless mengaktifkan tombol via DOM. Untuk menunjukkan klik biasa, gunakan demo manual di jendela Chrome.
+
+### Cara menjalankan dan cakupan database
+
+Untuk demo manual terpisah, gunakan konfigurasi TiDB Cloud lingkungan demo dan jalankan `php artisan serve`. Pastikan database demo sudah punya akun aktif untuk ketiga peran dan tiket milik akun Masyarakat. `php artisan terangdesa:tidb-check` bisa memeriksa koneksi, tetapi hasilnya tidak menggantikan demo alur pengguna.
+
+Untuk Dusk, hentikan Vite dev server bila aktif dan jalankan `npm run build` bila manifest belum tersedia. Dari root repo, jalankan:
+
+```sh
+php artisan dusk --browse --without-tty --do-not-cache-result tests/Browser/PBI11
+php artisan dusk --browse --without-tty --do-not-cache-result tests/Browser/PBI12
+```
+
+Suite menjalankan route dan tampilan Laravel dengan database SQLite sementara dan data fixture, termasuk akun dan pengajuan contoh. Koneksi serta jalur database diperiksa sebelum menulis fixture. Hasil Dusk membuktikan perilaku aplikasi pada data uji tersebut. Kesesuaian skema, koneksi, dan alur pada TiDB harus diperiksa terpisah di database demo. TC14.10 tentang seeder default sudah dihapus dari suite aktif.
+
+Hasil verifikasi suite saat ini dalam mode headless: PBI 11 **8 lulus, 49 assertion** dan PBI 12 **30 lulus, 132 assertion**.
+
+## Arsip audit sebelumnya
+
 Audit dan eksekusi individual dengan filter method/dataset: 17 November 2026 (WIB). PHP 8.5.7, Laravel 12.72, Dusk 8.8, PHPUnit 11.5.57. Hasil di bawah berasal dari eksekusi lokal, bukan perkiraan.
 
 ## Isolasi lanjutan TC13 Pemerintah — mode browser

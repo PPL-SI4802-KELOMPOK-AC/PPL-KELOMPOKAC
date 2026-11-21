@@ -80,7 +80,17 @@ class TC13AutentikasiLengkapTest extends PBI12TestCase
                 if ($role === 'pemerintah') {
                     $browser->waitUntil('document.querySelector("[data-table-wrap]").getAttribute("aria-busy") === "false"');
                 }
-                $browser->pause(2000)->click('form[action$="/logout"] button[type="submit"]')->pause(2000)
+                $logoutButton = 'form[action$="/logout"] button[type="submit"]';
+                $browser->pause(2000);
+                if ($role === 'pemerintah' && ! $this->hasHeadlessDisabled()) {
+                    // Chrome headless tidak mengirim event pointer pada tombol ini.
+                    $browser->assertVisible($logoutButton);
+                    $button = $browser->resolver->findOrFail($logoutButton);
+                    $browser->driver->executeScript('arguments[0].click();', [$button]);
+                } else {
+                    $browser->click($logoutButton);
+                }
+                $browser->pause(2000)
                     ->waitForLocation('/login')->assertPathIs('/login')
                     ->visit(route($route))->pause(2000)->assertPathIs('/login');
             } finally {

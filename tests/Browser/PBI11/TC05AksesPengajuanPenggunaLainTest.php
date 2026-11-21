@@ -10,7 +10,7 @@ class TC05AksesPengajuanPenggunaLainTest extends PBI11TestCase
      * ID TC: TC-11-05
      * Skenario: Pengguna mencoba mengakses pengajuan milik pengguna lain.
      * Kondisi awal: Pengguna lain sudah login dan pengajuan dimiliki user berbeda.
-     * Hasil yang diharapkan: Sistem menolak akses dengan respons 403 atau 404.
+     * Hasil yang diharapkan: Detail pengajuan tidak ditemukan (HTTP 404).
      */
     public function test_user_cannot_access_another_users_submission(): void
     {
@@ -32,10 +32,7 @@ class TC05AksesPengajuanPenggunaLainTest extends PBI11TestCase
                     'return performance.getEntriesByType("navigation")[0].responseStatus;'
                 )[0] ?? null;
 
-                $this->assertTrue(
-                    in_array($status, [403, 404], true),
-                    'Access to another user\'s submission should return HTTP 403 or 404.'
-                );
+                $this->assertSame(404, $status);
             } finally {
                 $browser->pause(3000);
             }

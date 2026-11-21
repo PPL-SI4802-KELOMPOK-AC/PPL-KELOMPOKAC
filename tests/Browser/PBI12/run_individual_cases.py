@@ -31,6 +31,8 @@ def cases_from_document():
 
 def manifest():
     rows = cases_from_document()
+    # The historical audit still lists the removed default-seeder test.
+    rows.pop('TC-AUTH-14.10', None)
     result = []
     for folder, limit in (('PBI11', 8), ('PBI12', 12)):
         for number in range(1, limit + 1):
@@ -61,7 +63,6 @@ def manifest():
         'TC-AUTH-14.7': ('test_role_middleware_rejects_direct_url', 'pemerintah ke masyarakat'),
         'TC-AUTH-14.8': ('test_role_middleware_rejects_direct_url', 'admin ke pemerintah'),
         'TC-AUTH-14.9': ('test_role_middleware_rejects_direct_url', 'admin ke masyarakat'),
-        'TC-AUTH-14.10': ('test_database_seeder_provides_login_accounts_for_all_roles', None),
     }
     for ident, (method, dataset) in mapping.items():
         filename = 'TC13AutentikasiLengkapTest.php' if ident.startswith('TC-AUTH-13.') else 'TC14KontrakServerTest.php'
