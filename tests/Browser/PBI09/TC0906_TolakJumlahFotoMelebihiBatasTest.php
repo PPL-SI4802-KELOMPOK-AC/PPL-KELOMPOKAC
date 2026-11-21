@@ -18,9 +18,11 @@ class TC0906_TolakJumlahFotoMelebihiBatasTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($s, $file) {
                 $this->signIn($browser, $s['email'], $s['password'])
                     ->visit($this->appUrl('/pengajuan/lokasi/bukti'))
+                    ->pause($this->demoPauseDuration())
                     ->attach('#photos', implode("\n", array_fill(0, 6, $file)))
                     ->script("document.querySelector('[data-evidence-submit]').disabled=false;");
                 $browser->click('[data-evidence-submit]')->waitForText('Maksimal lima foto dapat diunggah dalam satu kali pilihan.')
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi/bukti');
             });
             $this->assertSame(0, $s['draft']->bukti()->count());

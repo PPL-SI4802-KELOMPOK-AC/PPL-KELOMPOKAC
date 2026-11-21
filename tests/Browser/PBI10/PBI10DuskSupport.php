@@ -281,7 +281,15 @@ trait PBI10DuskSupport
         return $browser->visit(self::$baseUrl.'/login')
             ->type('email', $account['email'])
             ->type('password', $account['password'])
-            ->press('Masuk');
+            ->press('Masuk')
+            ->pause($this->demoPauseDuration());
+    }
+
+    protected function demoPauseDuration(): int
+    {
+        $duration = getenv('PBI10_DEMO_PAUSE');
+
+        return $duration === false ? 3000 : max(0, (int) $duration);
     }
 
     protected function appUrl(string $path): string

@@ -21,15 +21,18 @@ class TC0905_TolakFotoDenganFormatAtauUkuranTidakValidTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($s, $invalidFile, $largeFile) {
                 $this->signIn($browser, $s['email'], $s['password'])
                     ->visit($this->appUrl('/pengajuan/lokasi/bukti'))
+                    ->pause($this->demoPauseDuration())
                     ->attach('#photos', $invalidFile)
                     ->script("document.querySelector('[data-evidence-submit]').disabled=false;");
                 $browser->click('[data-evidence-submit]')
                     ->waitForText('The foto bukti field must be a file of type: jpg, jpeg, png, webp.')
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->attach('#photos', $largeFile)
                     ->script("document.querySelector('[data-evidence-submit]').disabled=false;");
                 $browser->click('[data-evidence-submit]')
                     ->waitForText('Ukuran setiap foto maksimal 5 MB.')
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi/bukti');
             });
             $this->assertSame(0, $s['draft']->bukti()->count());

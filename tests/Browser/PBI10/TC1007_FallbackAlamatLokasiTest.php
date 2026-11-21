@@ -21,6 +21,7 @@ class TC1007_FallbackAlamatLokasiTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($account, $submission, $fallbackAddress) {
             $this->signIn($browser, $account)
                 ->visit($this->appUrl('/pengajuan/riwayat'))
+                ->pause($this->demoPauseDuration())
                 ->assertSeeIn('tbody tr:first-child', $submission->nomor_tiket)
                 ->assertSeeIn('tbody tr:first-child', $fallbackAddress)
                 ->assertSeeIn('tbody tr:first-child', 'Tidak tersedia');

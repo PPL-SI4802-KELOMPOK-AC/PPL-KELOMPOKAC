@@ -9,8 +9,10 @@
                 @endif
                 <a href="{{ route('wilayah.map') }}" @if(request()->routeIs('wilayah.map')) aria-current="page" @endif>Peta wilayah</a>
                 @if(auth()->user()?->role === 'masyarakat')
-                <a href="{{ route('pengajuan.lokasi') }}" @if(request()->routeIs('pengajuan.*') && !request()->routeIs('pengajuan.riwayat')) aria-current="page" @endif>Pengajuan PLTS</a>
-                <a href="{{ route('pengajuan.riwayat') }}" @if(request()->routeIs('pengajuan.riwayat')) aria-current="page" @endif>Riwayat</a>
+                <a href="{{ route('pengajuan.lokasi') }}" @if(request()->routeIs('pengajuan.*') && !request()->routeIs('pengajuan.riwayat', 'pengajuan.riwayat.*')) aria-current="page" @endif>Pengajuan PLTS</a>
+                <a href="{{ route('pengajuan.riwayat') }}"
+                    @if(request()->routeIs('pengajuan.riwayat')) aria-current="page"
+                    @elseif(request()->routeIs('pengajuan.riwayat.*')) aria-current="location" @endif>Riwayat</a>
                 @elseif(auth()->user()?->role === 'pemerintah')
                     <a href="{{ route('wilayah.index') }}">Data wilayah</a>
                 @endif
