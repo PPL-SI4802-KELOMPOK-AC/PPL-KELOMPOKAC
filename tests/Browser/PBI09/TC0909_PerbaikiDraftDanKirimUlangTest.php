@@ -16,12 +16,16 @@ class TC0909_PerbaikiDraftDanKirimUlangTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($s) {
                 $this->signIn($browser, $s['email'], $s['password'])
                     ->visit($this->appUrl('/pengajuan/lokasi/ringkasan'))
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi')->assertSee('Data lokasi belum lengkap.')
                     ->type('#longitude', '107.6984')->click('button[name="action"][value="save"]')
                     ->waitForText('Draft lokasi berhasil disimpan.')
+                    ->pause($this->demoPauseDuration())
                     ->visit($this->appUrl('/pengajuan/lokasi/ringkasan'))
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi/ringkasan')->check('#pernyataan')
                     ->press('Kirim pengajuan')->waitForText('Pengajuan berhasil dikirim')
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi/terkirim/'.$s['draft']->id);
             });
             $this->assertSame('diajukan', $s['draft']->fresh()->status_terkini);

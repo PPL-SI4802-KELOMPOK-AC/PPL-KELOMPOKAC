@@ -134,7 +134,6 @@ trait PBI10DuskSupport
     {
         $options = (new ChromeOptions)->addArguments([
             '--disable-gpu',
-            '--headless=new',
             '--window-size=1920,1080',
             '--disable-smooth-scrolling',
             '--blink-settings=imagesEnabled=false',
@@ -282,7 +281,15 @@ trait PBI10DuskSupport
         return $browser->visit(self::$baseUrl.'/login')
             ->type('email', $account['email'])
             ->type('password', $account['password'])
-            ->press('Masuk');
+            ->press('Masuk')
+            ->pause($this->demoPauseDuration());
+    }
+
+    protected function demoPauseDuration(): int
+    {
+        $duration = getenv('PBI10_DEMO_PAUSE');
+
+        return $duration === false ? 3000 : max(0, (int) $duration);
     }
 
     protected function appUrl(string $path): string

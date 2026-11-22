@@ -6,8 +6,10 @@ use App\Models\PengajuanPlts;
 use App\Models\User;
 use App\Services\Pengajuan\LocationCatalog;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PengajuanHistoryTest extends TestCase
@@ -21,6 +23,7 @@ class PengajuanHistoryTest extends TestCase
         config([
             'database.default' => 'sqlite',
             'database.connections.sqlite.database' => ':memory:',
+            'database.connections.sqlite.url' => null,
             'app.key' => 'base64:'.base64_encode(str_repeat('h', 32)),
         ]);
         DB::purge('sqlite');
@@ -52,6 +55,16 @@ class PengajuanHistoryTest extends TestCase
             $table->text('alamat_deskriptif');
             $table->decimal('latitude', 10, 7)->nullable();
             $table->decimal('longitude', 11, 7)->nullable();
+        });
+
+        Schema::create('bukti_pengajuan', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('pengajuan_id')->constrained('pengajuan_plts');
+            $table->string('nama_file_asli', 255);
+            $table->string('path_file', 512)->unique();
+            $table->string('mime_type', 100);
+            $table->unsignedBigInteger('ukuran_byte');
+            $table->string('keterangan', 255)->nullable();
         });
 
         Schema::create('riwayat_status_pengajuan', function (Blueprint $table) {
@@ -127,7 +140,7 @@ class PengajuanHistoryTest extends TestCase
             ->assertDontSee('PLTS-OTHER-001')
             ->assertDontSee('DRAFT-OWN-001')
             ->assertSee('Diajukan')
-            ->assertSee(route('pengajuan.terkirim', ['pengajuan' => $submitted->id]), false)
+            ->assertSee(route('pengajuan.riwayat.show', ['pengajuan' => $submitted->id]), false)
             ->assertSee('Lihat detail')
             ->assertDontSee('Timeline');
     }
@@ -229,17 +242,22 @@ class PengajuanHistoryTest extends TestCase
             ->assertSee('Tidak tersedia');
     }
 
-    public function test_search_matches_ticket_number_without_exposing_other_users(): void
+    public function test_search_ignores_ticket_number_and_non_village_address_components(): void
     {
         $owner = $this->user();
         $other = $this->user();
-        $this->pengajuan($owner, 'PLTS-CARI-001');
+        $this->pengajuan($owner, 'PLTS-CARI-001', 'diajukan',
+            'Jalan CARI-001, RT 03, Awassagara, Cikelet, Kabupaten Garut, Jawa Barat');
         $this->pengajuan($other, 'PLTS-CARI-001-OTHER');
 
         $this->actingAs($owner)->get(route('pengajuan.riwayat', ['q' => 'CARI-001']))
             ->assertOk()
-            ->assertSee('PLTS-CARI-001')
+            ->assertDontSee('PLTS-CARI-001')
             ->assertDontSee('PLTS-CARI-001-OTHER');
+
+        $this->get(route('pengajuan.riwayat', ['q' => 'AWASSAGARA']))->assertSee('PLTS-CARI-001');
+        $this->get(route('pengajuan.riwayat', ['q' => 'Cikelet']))->assertDontSee('PLTS-CARI-001');
+        $this->get(route('pengajuan.riwayat', ['q' => '%']))->assertDontSee('PLTS-CARI-001');
     }
 
     public function test_search_matches_village_text_in_saved_address(): void
@@ -248,10 +266,13 @@ class PengajuanHistoryTest extends TestCase
         $this->pengajuan($owner, 'PLTS-DESA-001', 'diajukan', 'Desa Sukamaju, Kecamatan Uji');
         $this->pengajuan($owner, 'PLTS-DESA-002', 'diajukan', 'Desa Mekarsari, Kecamatan Uji');
 
-        $this->actingAs($owner)->get(route('pengajuan.riwayat', ['q' => 'Sukamaju']))
+        $this->pengajuan($this->user(), 'PLTS-DESA-OTHER', 'diajukan', 'Kelurahan Sukamaju');
+
+        $this->actingAs($owner)->get(route('pengajuan.riwayat', ['q' => 'KaMaJ']))
             ->assertOk()
             ->assertSee('PLTS-DESA-001')
-            ->assertDontSee('PLTS-DESA-002');
+            ->assertDontSee('PLTS-DESA-002')
+            ->assertDontSee('PLTS-DESA-OTHER');
     }
 
     public function test_status_filter_uses_only_submitted_statuses_for_the_logged_in_user(): void
@@ -270,7 +291,15 @@ class PengajuanHistoryTest extends TestCase
             ->assertDontSee('PLTS-STATUS-DRAFT')
             ->assertDontSee('PLTS-STATUS-OTHER');
 
-        $this->assertSame(['diajukan', 'selesai'], $response->viewData('statusOptions')->all());
+        $this->assertSame([
+            'diajukan' => 'Diajukan',
+            'diperiksa' => 'Sedang Diperiksa',
+            'diverifikasi' => 'Diverifikasi',
+            'diproses' => 'Dalam Proses',
+            'selesai' => 'Selesai',
+            'ditolak' => 'Ditolak',
+        ], $response->viewData('statusOptions'));
+        $response->assertSee('value="diajukan" selected', false)->assertDontSee('value="draft"', false);
     }
 
     public function test_period_filter_uses_first_submission_record_and_excludes_missing_dates(): void
@@ -289,7 +318,26 @@ class PengajuanHistoryTest extends TestCase
             ->assertOk()
             ->assertSee('PLTS-PERIODE-IN')
             ->assertDontSee('PLTS-PERIODE-OUT')
-            ->assertDontSee('PLTS-PERIODE-MISSING');
+            ->assertDontSee('PLTS-PERIODE-MISSING')
+            ->assertSee('name="periode" value="2026-09"', false);
+
+        $this->get(route('pengajuan.riwayat', ['tanggal' => '2026-10-02']))
+            ->assertOk()
+            ->assertDontSee('PLTS-PERIODE-IN')
+            ->assertDontSee('PLTS-PERIODE-OUT');
+
+        $this->get(route('pengajuan.riwayat', ['tanggal' => '2026-10-01', 'periode' => '2026-09']))
+            ->assertOk()
+            ->assertSee('PLTS-PERIODE-OUT')
+            ->assertDontSee('PLTS-PERIODE-IN')
+            ->assertSee('value="2026-10-01"', false)
+            ->assertSee('Reset Filter');
+
+        $this->get(route('pengajuan.riwayat'))
+            ->assertOk()
+            ->assertSee('PLTS-PERIODE-IN')
+            ->assertSee('PLTS-PERIODE-OUT')
+            ->assertSee('PLTS-PERIODE-MISSING');
     }
 
     public function test_combined_filters_paginate_and_keep_filter_parameters(): void
@@ -300,15 +348,15 @@ class PengajuanHistoryTest extends TestCase
         for ($index = 1; $index <= 12; $index++) {
             $ticket = sprintf('PLTS-PAGE-%02d', $index);
             $application = $this->pengajuan($owner, $ticket, 'diajukan', 'Desa Sukamaju');
-            $this->catatanPengajuanBaru($application, $owner, sprintf('2026-09-%02d 09:30:00', $index));
+            $this->catatanPengajuanBaru($application, $owner, sprintf('2026-09-20 %02d:30:00', $index));
         }
 
         $unmatched = $this->pengajuan($owner, 'PLTS-PAGE-WRONG-STATUS', 'selesai', 'Desa Sukamaju');
         $this->catatanPengajuanBaru($unmatched, $owner, '2026-09-20 09:30:00');
         $foreign = $this->pengajuan($other, 'PLTS-PAGE-FOREIGN', 'diajukan', 'Desa Sukamaju');
-        $this->catatanPengajuanBaru($foreign, $other, '2026-09-21 09:30:00');
+        $this->catatanPengajuanBaru($foreign, $other, '2026-09-20 09:30:00');
 
-        $parameters = ['q' => 'Sukamaju', 'status' => 'diajukan', 'periode' => '2026-09'];
+        $parameters = ['q' => 'Sukamaju', 'status' => 'diajukan', 'tanggal' => '2026-09-20'];
         $firstPage = $this->actingAs($owner)->get(route('pengajuan.riwayat', $parameters))
             ->assertOk()
             ->assertSee('PLTS-PAGE-12')
@@ -321,7 +369,7 @@ class PengajuanHistoryTest extends TestCase
         parse_str((string) parse_url($nextPageUrl, PHP_URL_QUERY), $query);
         $this->assertSame('Sukamaju', $query['q'] ?? null);
         $this->assertSame('diajukan', $query['status'] ?? null);
-        $this->assertSame('2026-09', $query['periode'] ?? null);
+        $this->assertSame('2026-09-20', $query['tanggal'] ?? null);
         $this->assertSame('2', (string) ($query['page'] ?? ''));
 
         $secondPage = $this->get($nextPageUrl)
@@ -369,5 +417,186 @@ class PengajuanHistoryTest extends TestCase
                 ->get(route('pengajuan.riwayat'))
                 ->assertForbidden();
         }
+    }
+
+    public function test_detail_displays_the_selected_submissions_data_and_private_photo_links(): void
+    {
+        $owner = $this->user();
+        $address = app(LocationCatalog::class)->address([
+            'kabupaten' => '3205',
+            'kecamatan' => 'Cikelet',
+            'desa' => '32.05.30.2010',
+            'alamat' => 'Kampung Uji, RT 01',
+        ]);
+        $submission = $this->pengajuan($owner, 'PLTS-DETAIL-001', 'diajukan', $address);
+        $submission->lokasi()->update(['latitude' => -7.5812345, 'longitude' => 107.6984567]);
+        $submission->status_diperbarui_pada = '2026-11-21 10:30:00';
+        $submission->save();
+        $this->catatanPengajuanBaru($submission, $owner, '2026-11-21 09:15:00');
+
+        $photos = $submission->bukti()->createMany([
+            ['nama_file_asli' => 'Rumah.png', 'path_file' => 'internal/rumah.png', 'mime_type' => 'image/png', 'ukuran_byte' => 100],
+            ['nama_file_asli' => 'Jalan.png', 'path_file' => 'internal/jalan.png', 'mime_type' => 'image/png', 'ukuran_byte' => 200],
+        ]);
+        $otherSubmission = $this->pengajuan($owner, 'PLTS-DETAIL-002');
+        $otherSubmission->bukti()->create([
+            'nama_file_asli' => 'Foto pengajuan lain.png',
+            'path_file' => 'internal/lain.png',
+            'mime_type' => 'image/png',
+            'ukuran_byte' => 100,
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('pengajuan.riwayat.show', $submission))
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')
+            ->assertSee('Detail Pengajuan PLTS')
+            ->assertSee('PLTS-DETAIL-001')
+            ->assertSee($owner->name)
+            ->assertSee($address)
+            ->assertSee('Awassagara')
+            ->assertSee('Cikelet')
+            ->assertSee('Kabupaten Garut')
+            ->assertSee('Jawa Barat')
+            ->assertSee('-7.5812345, 107.6984567')
+            ->assertSee($submission->ringkasan_pengajuan)
+            ->assertSee('21 Nov 2026, 09:15')
+            ->assertSee('21 Nov 2026, 10:30')
+            ->assertSee('Diajukan')
+            ->assertSeeInOrder(['Rumah.png', 'Jalan.png'])
+            ->assertDontSee('internal/')
+            ->assertDontSee('Foto pengajuan lain.png')
+            ->assertDontSee('Pengajuan berhasil dikirim')
+            ->assertSee('href="'.route('pengajuan.riwayat').'"', false)
+            ->assertSee('Kembali ke Riwayat')
+            ->assertSee('aria-current="location"', false);
+
+        foreach ($photos as $photo) {
+            $response->assertSee('src="'.route('pengajuan.bukti.show', $photo->id).'"', false);
+        }
+    }
+
+    public function test_detail_checks_authentication_ownership_and_submitted_status(): void
+    {
+        $owner = $this->user();
+        $submission = $this->pengajuan($owner, 'PLTS-PRIVATE');
+        $draft = $this->pengajuan($owner, 'DRAFT-PRIVATE', 'draft');
+        $url = route('pengajuan.riwayat.show', $submission);
+
+        $this->get($url)->assertRedirect(route('login'));
+        $this->actingAs($this->user('pemerintah'))->get($url)->assertForbidden();
+        $this->actingAs($this->user())->get($url)->assertNotFound()->assertDontSee($submission->nomor_tiket);
+        $this->actingAs($owner)->get(route('pengajuan.riwayat.show', $draft))->assertNotFound();
+        $this->get(route('pengajuan.riwayat.show', 99999))->assertNotFound();
+    }
+
+    public function test_detail_reads_latest_status_and_orders_real_history_by_time_and_id(): void
+    {
+        $owner = $this->user();
+        $submission = $this->pengajuan($owner, 'PLTS-TIMELINE');
+        $this->catatanPengajuanBaru($submission, $owner, '2026-11-21 08:15:00');
+        $url = route('pengajuan.riwayat.show', $submission);
+
+        $this->actingAs($owner)->get($url)->assertOk()
+            ->assertSee('data-detail-status="diajukan"', false)
+            ->assertDontSee('Sedang Diperiksa')
+            ->assertDontSee('Dalam Proses');
+
+        foreach ([
+            ['diverifikasi', '2026-11-21 11:30:00'],
+            ['diperiksa', '2026-11-21 10:15:00'],
+            ['ditolak', '2026-11-21 11:30:00'],
+        ] as [$status, $createdAt]) {
+            DB::table('riwayat_status_pengajuan')->insert([
+                'pengajuan_id' => $submission->id,
+                'diubah_oleh' => $owner->id,
+                'status_baru' => $status,
+                'jenis_tindakan' => 'tindak_lanjut',
+                'catatan' => 'Catatan internal petugas',
+                'hasil_verifikasi' => 'Hasil internal petugas',
+                'created_at' => $createdAt,
+            ]);
+        }
+        $submission->status_terkini = 'ditolak';
+        $submission->status_diperbarui_pada = '2026-11-21 11:45:00';
+        $submission->save();
+
+        $this->get($url)->assertOk()
+            ->assertSee('class="submission-detail__badge" data-detail-status="ditolak">Ditolak', false)
+            ->assertSeeInOrder([
+                'aria-label="Riwayat perubahan status"',
+                '<strong>Diajukan</strong>',
+                '21 Nov 2026, 08:15',
+                '<strong>Sedang Diperiksa</strong>',
+                '21 Nov 2026, 10:15',
+                '<strong>Diverifikasi</strong>',
+                '<strong>Ditolak</strong>',
+            ], false)
+            ->assertSee('21 Nov 2026, 11:45')
+            ->assertDontSee('Dalam Proses')
+            ->assertDontSee('Disetujui')
+            ->assertDontSee('Catatan internal petugas')
+            ->assertDontSee('Hasil internal petugas');
+    }
+
+    public function test_detail_handles_empty_relations_and_legacy_addresses(): void
+    {
+        $owner = $this->user();
+        $submission = $this->pengajuan($owner, 'PLTS-DETAIL-EMPTY', 'diproses');
+        DB::table('pengajuan_plts')->where('id', $submission->id)->update([
+            'ringkasan_pengajuan' => '',
+            'status_diperbarui_pada' => null,
+        ]);
+        $url = route('pengajuan.riwayat.show', $submission);
+
+        $this->actingAs($owner)->get($url)->assertOk()
+            ->assertSee('Tidak tersedia')
+            ->assertSee('Dalam Proses')
+            ->assertSee('Foto bukti tidak tersedia.')
+            ->assertSee('Riwayat perubahan status belum tersedia.');
+
+        $submission->lokasi()->create(['alamat_deskriptif' => 'Kampung Lama, Blok B']);
+        $this->get($url)->assertOk()->assertSee('Kampung Lama, Blok B')->assertSee('Tidak tersedia');
+    }
+
+    public function test_uploaded_photo_and_submission_receipt_still_work_before_opening_detail(): void
+    {
+        $owner = $this->user();
+        $address = app(LocationCatalog::class)->address([
+            'kabupaten' => '3205',
+            'kecamatan' => 'Cikelet',
+            'desa' => '32.05.30.2010',
+            'alamat' => 'Kampung Uji',
+        ]);
+        $draft = $this->pengajuan($owner, 'DRAFT-REGRESSION', 'draft', $address);
+        $disk = Storage::fake('r2');
+        $disk->buildTemporaryUrlsUsing(fn ($path) => 'https://photos.example.test/'.$path);
+        $image = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6l1sAAAAASUVORK5CYII=');
+
+        $this->actingAs($owner)->post(route('pengajuan.kirim'), [
+            'draft_id' => $draft->id,
+            'pernyataan' => '1',
+        ])->assertSessionHasErrors('photos');
+
+        $this->post(route('pengajuan.bukti.store'), [
+            'draft_id' => $draft->id,
+            'photos' => [UploadedFile::fake()->createWithContent('bukti.png', $image)],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('pengajuan.bukti'));
+        $photo = $draft->bukti()->sole();
+        $disk->assertExists($photo->path_file);
+
+        $this->get(route('pengajuan.ringkasan'))->assertOk()->assertSee('Periksa sebelum mengirim');
+        $receiptUrl = route('pengajuan.terkirim', $draft);
+        $this->post(route('pengajuan.kirim'), [
+            'draft_id' => $draft->id,
+            'pernyataan' => '1',
+        ])->assertRedirect($receiptUrl);
+        $this->get($receiptUrl)->assertOk()->assertSee('Pengajuan berhasil dikirim')->assertSee($draft->fresh()->nomor_tiket);
+
+        $this->get(route('pengajuan.riwayat.show', $draft))
+            ->assertOk()
+            ->assertSee('bukti.png')
+            ->assertSee('Diajukan');
+        $this->get(route('pengajuan.bukti.show', $photo))->assertRedirect('https://photos.example.test/'.$photo->path_file);
+        $this->actingAs($this->user())->get(route('pengajuan.bukti.show', $photo))->assertNotFound();
     }
 }

@@ -22,6 +22,7 @@ class TC1003_SembunyikanPengajuanDraftTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($account, $sent, $draft) {
             $this->signIn($browser, $account)
                 ->visit($this->appUrl('/pengajuan/riwayat'))
+                ->pause($this->demoPauseDuration())
                 ->assertSeeIn('tbody', $sent->nomor_tiket)
                 ->assertDontSeeIn('tbody', $draft->nomor_tiket)
                 ->assertSeeIn('.history-summary-card:first-child .history-summary-value', '1')

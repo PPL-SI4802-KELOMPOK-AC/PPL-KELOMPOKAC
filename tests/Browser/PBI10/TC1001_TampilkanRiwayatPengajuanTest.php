@@ -17,6 +17,7 @@ class TC1001_TampilkanRiwayatPengajuanTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($account, $submission) {
             $this->signIn($browser, $account)
                 ->visit($this->appUrl('/pengajuan/riwayat'))
+                ->pause($this->demoPauseDuration())
                 ->assertPathIs('/pengajuan/riwayat')
                 ->assertSee('Riwayat Pengajuan Anda')
                 ->assertSeeIn('tbody tr:first-child', $submission->nomor_tiket)

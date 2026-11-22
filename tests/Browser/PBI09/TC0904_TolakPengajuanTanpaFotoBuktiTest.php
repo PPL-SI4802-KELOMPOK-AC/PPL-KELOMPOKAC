@@ -16,8 +16,10 @@ class TC0904_TolakPengajuanTanpaFotoBuktiTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($s) {
                 $this->signIn($browser, $s['email'], $s['password'])
                     ->visit($this->appUrl('/pengajuan/lokasi/ringkasan'))
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->assertSee('Bukti wajib belum lengkap');
+                $this->pauseForDemo($browser);
             });
             $this->assertSame('draft', $s['draft']->fresh()->status_terkini);
         } finally {

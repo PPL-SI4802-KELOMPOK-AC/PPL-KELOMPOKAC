@@ -16,7 +16,9 @@ class TC0902_TolakDataUtamaKosongTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($s) {
                 $this->signIn($browser, $s['email'], $s['password'])
                     ->visit($this->appUrl('/pengajuan/lokasi/ringkasan'))
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi')->assertSee('Data utama pengajuan belum lengkap.');
+                $this->pauseForDemo($browser);
             });
             $this->assertSame('draft', $s['draft']->fresh()->status_terkini);
         } finally {

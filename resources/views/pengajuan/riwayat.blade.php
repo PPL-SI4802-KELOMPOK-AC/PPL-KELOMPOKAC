@@ -53,13 +53,13 @@
     <section class="panel list-panel" aria-label="Filter dan daftar riwayat pengajuan">
         <form class="history-filters" method="GET" action="{{ route('pengajuan.riwayat') }}">
             <div class="history-filter-field">
-                <label for="history-search">Cari pengajuan</label>
+                <label for="history-search">Nama Desa</label>
                 <input
                     id="history-search"
                     type="search"
                     name="q"
                     value="{{ $filters['q'] }}"
-                    placeholder="Nomor pengajuan atau nama desa"
+                    placeholder="Cari nama desa..."
                     maxlength="150"
                 >
             </div>
@@ -67,28 +67,46 @@
                 <label for="history-status">Status</label>
                 <select id="history-status" name="status">
                     <option value="">Semua status</option>
-                    @foreach($statusOptions as $statusOption)
+                    @foreach($statusOptions as $statusOption => $statusLabel)
                         <option value="{{ $statusOption }}" @selected($filters['status'] === $statusOption)>
-                            {{ ucfirst(str_replace('_', ' ', $statusOption)) }}
+                            {{ $statusLabel }}
                         </option>
                     @endforeach
                 </select>
             </div>
             <div class="history-filter-field">
-                <label for="history-period">Periode</label>
-                <input
-                    id="history-period"
-                    type="month"
-                    name="periode"
-                    value="{{ $filters['periode'] }}"
-                    aria-describedby="history-period-help"
-                >
-                <small id="history-period-help">Pilih bulan pengajuan dikirim (YYYY-MM).</small>
+                <label id="history-date-label" for="history-date">Tanggal Pengajuan</label>
+                <div class="history-date-control">
+                    <input
+                        id="history-date-text"
+                        type="text"
+                        placeholder="dd/mm/yyyy"
+                        autocomplete="off"
+                        aria-describedby="history-date-error"
+                        hidden
+                    >
+                    <svg class="history-date-icon" aria-hidden="true" viewBox="0 0 24 24">
+                        <rect x="3" y="5" width="18" height="16" rx="2"/>
+                        <path d="M7 3v4m10-4v4M3 10h18"/>
+                    </svg>
+                    <input
+                        id="history-date"
+                        type="date"
+                        name="tanggal"
+                        value="{{ $filters['tanggal'] }}"
+                        @if($filters['periode'] !== '') aria-describedby="history-period-help" @endif
+                    >
+                </div>
+                <small id="history-date-error" class="history-date-error" role="alert" hidden>Masukkan tanggal yang valid dengan format dd/mm/yyyy.</small>
+                @if($filters['periode'] !== '')
+                    <input type="hidden" name="periode" value="{{ $filters['periode'] }}">
+                    <small id="history-period-help">Filter bulan {{ $filters['periode'] }} aktif dari tautan lama.</small>
+                @endif
             </div>
             <div class="history-filter-actions">
                 <button class="button button--primary" type="submit">Terapkan</button>
-                @if($filters['q'] !== '' || $filters['status'] !== '' || $filters['periode'] !== '')
-                    <a class="button" href="{{ route('pengajuan.riwayat') }}">Reset</a>
+                @if($filters['q'] !== '' || $filters['status'] !== '' || $filters['tanggal'] !== '' || $filters['periode'] !== '')
+                    <a class="button" href="{{ route('pengajuan.riwayat') }}">Reset Filter</a>
                 @endif
             </div>
         </form>
@@ -152,7 +170,7 @@
                             </td>
                             <td>
                                 <div class="row-actions">
-                                    <a class="button" href="{{ route('pengajuan.terkirim', ['pengajuan' => $pengajuan->id]) }}">Lihat detail</a>
+                                    <a class="button" href="{{ route('pengajuan.riwayat.show', ['pengajuan' => $pengajuan->id]) }}">Lihat detail</a>
                                 </div>
                             </td>
                         </tr>
@@ -209,4 +227,123 @@
             @endif
         </div>
     </section>
+    <style>
+        .history-page .history-filters {
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .85fr) auto;
+            gap: 12px;
+            padding: 14px 20px 12px;
+        }
+        .history-page .history-filter-field label { line-height: 18px; }
+        .history-page .history-filter-actions { grid-column: auto; justify-content: flex-start; padding-top: 25px; }
+        .history-page .history-filter-actions .button { min-height: 44px; }
+
+        .history-page .history-date-control { position: relative; min-width: 0; }
+        .history-page .history-date-icon { display: none; }
+        .history-page .history-date-control.is-enhanced #history-date-text { padding-right: 48px; }
+        .history-page .history-date-control.is-enhanced #history-date {
+            position: absolute;
+            inset: 0 0 0 auto;
+            width: 44px;
+            margin: 0;
+            padding: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .history-page .history-date-control.is-enhanced #history-date::-webkit-calendar-picker-indicator {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            cursor: pointer;
+        }
+        .history-page .history-date-control.is-enhanced .history-date-icon {
+            display: block;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: #294359;
+            stroke-width: 1.8;
+            pointer-events: none;
+        }
+        .history-page .history-date-control:has(#history-date:focus-visible) .history-date-icon { outline: 2px solid #0c6b92; outline-offset: 4px; border-radius: 2px; }
+        .history-page .history-filter-field .history-date-error { color: #a92f28; }
+
+        @media (max-width: 900px) {
+            .history-page .history-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 560px) {
+            .history-page .history-filters { grid-template-columns: minmax(0, 1fr); padding-inline: 16px; }
+            .history-page .history-filter-actions { justify-content: stretch; padding-top: 0; }
+        }
+    </style>
+    <script>
+        (() => {
+            const picker = document.getElementById('history-date');
+            const manual = document.getElementById('history-date-text');
+            const error = document.getElementById('history-date-error');
+
+            const refreshManual = () => {
+                manual.value = picker.value.split('-').reverse().join('/');
+                clearError();
+            };
+            const clearError = () => {
+                error.hidden = true;
+                manual.removeAttribute('aria-invalid');
+            };
+            const syncPicker = () => {
+                const parts = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(manual.value);
+                // A native date input clears impossible dates, including invalid leap days.
+                picker.value = parts ? `${parts[3]}-${parts[2]}-${parts[1]}` : '';
+                return manual.value === '' || picker.value !== '';
+            };
+            const openPicker = (event) => {
+                if (typeof picker.showPicker === 'function') {
+                    try {
+                        picker.showPicker();
+                        event.preventDefault();
+                    } catch {
+                        // Leave the browser's native date control available.
+                    }
+                }
+            };
+
+            refreshManual();
+            picker.parentElement.classList.add('is-enhanced');
+            document.getElementById('history-date-label').htmlFor = manual.id;
+            picker.setAttribute('aria-label', 'Buka kalender tanggal pengajuan');
+            manual.hidden = false;
+
+            manual.addEventListener('input', () => {
+                syncPicker();
+                clearError();
+            });
+            picker.addEventListener('input', refreshManual);
+            picker.addEventListener('change', refreshManual);
+            picker.addEventListener('click', openPicker);
+            picker.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    openPicker(event);
+                }
+            });
+            picker.form.addEventListener('submit', (event) => {
+                if (!syncPicker()) {
+                    event.preventDefault();
+                    manual.setAttribute('aria-invalid', 'true');
+                    error.hidden = false;
+                    manual.focus();
+                    return;
+                }
+
+                const legacyPeriod = picker.form.elements.namedItem('periode');
+                if (legacyPeriod) {
+                    legacyPeriod.disabled = true;
+                }
+            });
+        })();
+    </script>
 @endsection

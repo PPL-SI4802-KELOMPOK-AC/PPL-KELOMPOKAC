@@ -16,8 +16,10 @@ class TC0901_KirimPengajuanDenganDataValidTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($s) {
                 $this->signIn($browser, $s['email'], $s['password'])
                     ->visit($this->appUrl('/pengajuan/lokasi/ringkasan'))
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi/ringkasan')->check('#pernyataan')
                     ->press('Kirim pengajuan')->waitForText('Pengajuan berhasil dikirim')
+                    ->pause($this->demoPauseDuration())
                     ->assertPathIs('/pengajuan/lokasi/terkirim/'.$s['draft']->id)
                     ->assertSee('Status pengajuan:')->assertSee('Diajukan');
             });
