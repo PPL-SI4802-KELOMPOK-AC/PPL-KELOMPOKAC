@@ -8,7 +8,6 @@ use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Dusk\Browser;
 use PHPUnit\Framework\Attributes\BeforeClass;
@@ -20,12 +19,17 @@ use Throwable;
 abstract class PBI12TestCase extends DuskTestCase
 {
     protected const PASSWORD_MASYARAKAT = '1234567890';
+
     protected const PASSWORD_PEMERINTAH = '1234567890';
+
     protected const PASSWORD_ADMIN = '123456780123456780';
 
     private static ?Process $testServer = null;
+
     private static ?string $testDatabase = null;
+
     private static int $driverPort;
+
     private static array $originalEnvironment = [];
 
     protected array $fixture = [];
@@ -44,7 +48,7 @@ abstract class PBI12TestCase extends DuskTestCase
             );
         }
 
-        $directory = $root.'/storage/framework/testing';
+        $directory = __DIR__.'/.runtime';
 
         if (
             ! is_dir($directory)
@@ -74,6 +78,8 @@ abstract class PBI12TestCase extends DuskTestCase
             $environment = [
                 'APP_ENV' => 'testing',
                 'APP_DEBUG' => 'false',
+                'VIEW_COMPILED_PATH' => $directory,
+                'LOG_CHANNEL' => 'stderr',
                 'APP_URL' => 'http://127.0.0.1:'.$port,
                 'APP_KEY' => 'base64:'.base64_encode(random_bytes(32)),
                 'APP_CONFIG_CACHE' => $directory.'/pbi12-config-'.$token.'.php',
@@ -140,6 +146,10 @@ abstract class PBI12TestCase extends DuskTestCase
             '--disable-smooth-scrolling',
         ]);
 
+        if (! $this->hasHeadlessDisabled()) {
+            $options->addArguments(['--headless=new']);
+        }
+
         return RemoteWebDriver::create(
             'http://127.0.0.1:'.self::$driverPort,
             DesiredCapabilities::chrome()->setCapability(
@@ -153,6 +163,10 @@ abstract class PBI12TestCase extends DuskTestCase
     {
         parent::setUp();
 
+        Browser::$storeScreenshotsAt = __DIR__.'/.runtime';
+        Browser::$storeConsoleLogAt = __DIR__.'/.runtime';
+        Browser::$storeSourceAt = __DIR__.'/.runtime';
+
         $this->assertSame('sqlite', DB::connection()->getDriverName());
         $this->assertSame(
             self::$testDatabase,
@@ -165,6 +179,7 @@ abstract class PBI12TestCase extends DuskTestCase
     protected function tearDown(): void
     {
         try {
+            static::closeAll();
             DB::disconnect('sqlite');
         } finally {
             parent::tearDown();
@@ -259,7 +274,7 @@ abstract class PBI12TestCase extends DuskTestCase
     {
         $connection = DB::connection();
         $path = $connection->getDatabaseName();
-        $directory = realpath(storage_path('framework/testing'));
+        $directory = realpath(__DIR__.'/.runtime');
 
         if (
             $connection->getDriverName() !== 'sqlite'
@@ -275,6 +290,7 @@ abstract class PBI12TestCase extends DuskTestCase
             );
         }
 
+        Schema::dropIfExists('riwayat_status_pengajuan');
         Schema::dropIfExists('admin_activity_logs');
         Schema::dropIfExists('pengajuan_plts');
         Schema::dropIfExists('wilayah');
@@ -284,6 +300,7 @@ abstract class PBI12TestCase extends DuskTestCase
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('role');
             $table->boolean('is_active')->default(true);
@@ -326,6 +343,36 @@ abstract class PBI12TestCase extends DuskTestCase
             $table->string('action', 40)->index();
             $table->json('changes');
             $table->timestamp('created_at')->index();
+        });
+
+        Schema::create('riwayat_status_pengajuan', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('pengajuan_id')
+                ->constrained('pengajuan_plts');
+            $table->foreignId('diubah_oleh')->constrained('users');
+
+            $table->enum('status_sebelumnya', [
+                'diajukan',
+                'diperiksa',
+                'diverifikasi',
+                'diproses',
+                'selesai',
+                'ditolak',
+            ])->nullable();
+
+            $table->enum('status_baru', [
+                'diajukan',
+                'diperiksa',
+                'diverifikasi',
+                'diproses',
+                'selesai',
+                'ditolak',
+            ]);
+
+            $table->string('jenis_tindakan', 50);
+            $table->string('hasil_verifikasi', 50)->nullable();
+            $table->text('catatan')->nullable();
+            $table->timestamp('created_at')->useCurrent();
         });
 
         $masyarakat = $this->createFixtureUser(
@@ -373,7 +420,7 @@ abstract class PBI12TestCase extends DuskTestCase
 
     protected function clearBrowserSession(Browser $browser): void
     {
-        $browser->visit('/login');
+        $browser->visit('/login')->pause(2000);
         $browser->driver->manage()->deleteAllCookies();
     }
 
@@ -382,9 +429,10 @@ abstract class PBI12TestCase extends DuskTestCase
         string $email,
         string $password
     ): void {
-        $browser->visit('/login')
-            ->type('email', $email)
-            ->type('password', $password)
-            ->press('Masuk');
+        $browser->visit('/login')->pause(2000)
+            ->type('email', $email)->pause(2000)
+            ->type('password', $password)->pause(2000)
+            ->press('Masuk')->pause(2000)
+            ->waitUntil('window.location.pathname !== "/login"');
     }
 }

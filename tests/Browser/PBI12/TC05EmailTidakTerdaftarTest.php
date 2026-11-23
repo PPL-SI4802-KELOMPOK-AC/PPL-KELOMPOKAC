@@ -10,13 +10,19 @@ class TC05EmailTidakTerdaftarTest extends PBI12TestCase
     public function test_tc_pbi12_05_email_tidak_terdaftar(): void
     {
         $this->browse(function (Browser $browser) {
-            $this->clearBrowserSession($browser);
+            try {
+                $this->clearBrowserSession($browser);
 
-            $browser->visit('/login')
-                ->type('email', 'tidak.terdaftar@example.test')
-                ->type('password', '1234567890')
-                ->press('Masuk')
-                ->assertSee('Email atau kata sandi salah');
+                $browser->visit('/login')->pause(2000)
+                    ->type('email', 'tidak.terdaftar@example.test')->pause(2000)
+                    ->type('password', '1234567890')->pause(2000)
+                    ->press('Masuk')->pause(2000)
+                    ->waitFor('#email-error')
+                    ->assertPathIs('/login')
+                    ->assertSee('Email atau kata sandi salah');
+            } finally {
+                $browser->pause(3000);
+            }
         });
     }
 }

@@ -10,13 +10,19 @@ class TC04PasswordSalahTest extends PBI12TestCase
     public function test_tc_pbi12_04_password_salah(): void
     {
         $this->browse(function (Browser $browser) {
-            $this->clearBrowserSession($browser);
+            try {
+                $this->clearBrowserSession($browser);
 
-            $browser->visit('/login')
-                ->type('email', 'masyarakat.uji@example.test')
-                ->type('password', 'password-salah')
-                ->press('Masuk')
-                ->assertSee('Email atau kata sandi salah');
+                $browser->visit('/login')->pause(2000)
+                    ->type('email', 'masyarakat.uji@example.test')->pause(2000)
+                    ->type('password', 'password-salah')->pause(2000)
+                    ->press('Masuk')->pause(2000)
+                    ->waitFor('#email-error')
+                    ->assertPathIs('/login')
+                    ->assertSee('Email atau kata sandi salah');
+            } finally {
+                $browser->pause(3000);
+            }
         });
     }
 }
