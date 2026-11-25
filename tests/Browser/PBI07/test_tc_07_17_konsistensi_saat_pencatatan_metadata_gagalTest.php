@@ -14,7 +14,7 @@ use Mockery;
 use RuntimeException;
 use Tests\DuskTestCase;
 
-class test_tc_07_17_gagal_mencatat_metadata_setelah_upload_r2Test extends DuskTestCase
+class test_tc_07_17_konsistensi_saat_pencatatan_metadata_gagalTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-17
@@ -23,8 +23,15 @@ class test_tc_07_17_gagal_mencatat_metadata_setelah_upload_r2Test extends DuskTe
      * Hasil yang diharapkan: Foto baru dibersihkan, metadata baru tidak tercatat,
      * dan objek foto lama tetap aman.
      */
-    public function test_tc_07_17_gagal_mencatat_metadata_setelah_upload_r2(): void
+    /**
+     * ID: TC-07-17
+     * Fokus pengujian: Konsistensi saat pencatatan metadata gagal.
+     * Prasyarat dan data uji: Foto baru berhasil disimpan ke R2; insert metadata gagal; terdapat foto lama.
+     * Hasil yang diharapkan: Transaksi dibatalkan; objek baru dibersihkan; foto lama aman; metadata baru tidak tercatat.
+     * Jenis: Exception.    */
+    public function test_tc_07_17_konsistensi_saat_pencatatan_metadata_gagal(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $photoPath = __DIR__.DIRECTORY_SEPARATOR.'tc-07-17-foto-valid.png';
 
         $user = new User;

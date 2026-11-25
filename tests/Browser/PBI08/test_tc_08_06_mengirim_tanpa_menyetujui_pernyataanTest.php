@@ -21,6 +21,7 @@ class test_tc_08_06_mengirim_tanpa_menyetujui_pernyataanTest extends DuskTestCas
      */
     public function test_tc_08_06_mengirim_tanpa_menyetujui_pernyataan(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $email = 'dusk-pbi08-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-08-06';
 

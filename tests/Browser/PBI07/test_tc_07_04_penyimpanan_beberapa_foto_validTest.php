@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-class test_tc_07_04_mengunggah_beberapa_foto_validTest extends DuskTestCase
+class test_tc_07_04_penyimpanan_beberapa_foto_validTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-04
@@ -21,8 +21,15 @@ class test_tc_07_04_mengunggah_beberapa_foto_validTest extends DuskTestCase
      * Hasil yang diharapkan: Status unggah tampil, tombol nonaktif saat proses,
      * foto tersimpan di R2, dan metadata tercatat untuk draft.
      */
-    public function test_tc_07_04_mengunggah_beberapa_foto_valid(): void
+    /**
+     * ID: TC-07-04
+     * Fokus pengujian: Penyimpanan beberapa foto valid.
+     * Prasyarat dan data uji: Draft berstatus `draft` dengan lokasi; dua foto PNG valid; total foto tidak lebih dari lima.
+     * Hasil yang diharapkan: Kedua foto tersimpan; metadata tercatat pada draft; status proses dan keberhasilan unggah tampil.
+     * Jenis: Normal.    */
+    public function test_tc_07_04_penyimpanan_beberapa_foto_valid(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-07-04';
         $address = 'Desa Uji PBI07 TC04, Kecamatan Uji, Kabupaten Uji';
@@ -67,12 +74,17 @@ class test_tc_07_04_mengunggah_beberapa_foto_validTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($email, $password, $photoNames, $photoPaths) {
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
                     ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->assertSee('Tunjukkan kondisi di lapangan')
                     ->attach('#photos', implode("\n", $photoPaths))
+                    ->pause(900)
                     ->waitFor('[data-evidence-preview] img[alt="Preview '.$photoNames[0].'"]')
                     ->waitFor('[data-evidence-preview] img[alt="Preview '.$photoNames[1].'"]')
                     ->assertSeeIn('[data-evidence-preview]', $photoNames[0])

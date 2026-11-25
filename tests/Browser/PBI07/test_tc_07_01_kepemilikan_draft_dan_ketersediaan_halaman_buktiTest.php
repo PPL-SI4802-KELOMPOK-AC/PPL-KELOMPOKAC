@@ -9,18 +9,18 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\DuskTestCase;
 
-class test_tc_07_01_membuka_halaman_bukti_foto_dengan_draft_lokasiTest extends DuskTestCase
+class test_tc_07_01_kepemilikan_draft_dan_ketersediaan_halaman_buktiTest extends DuskTestCase
 {
     /**
-     * ID TC: TC-07-01
-     * Skenario: Membuka halaman bukti foto dengan draft lokasi.
+     * ID: TC-07-01
+     * Fokus pengujian: Kepemilikan draft dan ketersediaan halaman bukti.
+     * Prasyarat dan data uji: Pengguna masyarakat login; memiliki draft berstatus `draft` dengan lokasi tersimpan.
+     * Hasil yang diharapkan: Halaman bukti terbuka dan menampilkan data draft milik pengguna tersebut.
      * Jenis: Normal.
-     * Kondisi awal: Pengguna masyarakat memiliki draft berstatus draft dan lokasi tersimpan.
-     * Langkah: Pengguna membuka halaman bukti foto.
-     * Hasil yang diharapkan: Halaman bukti foto terbuka dan menampilkan data draft milik pengguna.
      */
-    public function test_tc_07_01_membuka_halaman_bukti_foto_dengan_draft_lokasi(): void
+    public function test_tc_07_01_kepemilikan_draft_dan_ketersediaan_halaman_bukti(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-07-01';
         $address = 'Desa Uji PBI07, Kecamatan Uji, Kabupaten Uji';
@@ -51,9 +51,15 @@ class test_tc_07_01_membuka_halaman_bukti_foto_dengan_draft_lokasiTest extends D
             $this->browse(function (Browser $browser) use ($email, $password, $address) {
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
+                    ->waitForLocation('/peta-wilayah')
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
+                    ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->assertSee('Tunjukkan kondisi di lapangan')
                     ->assertSee('Draft tersimpan')
                     ->assertSee('Draft lokasi tersimpan')

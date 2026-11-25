@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\DuskTestCase;
 
-class test_tc_07_14_mengunggah_foto_ke_draft_pengguna_lainTest extends DuskTestCase
+class test_tc_07_14_otorisasi_pemilik_draft_saat_uploadTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-14
@@ -19,8 +19,15 @@ class test_tc_07_14_mengunggah_foto_ke_draft_pengguna_lainTest extends DuskTestC
      * Input: Pengguna mencoba upload menggunakan ID draft milik pengguna lain.
      * Hasil yang diharapkan: Akses ditolak dan foto tidak ditambahkan ke draft.
      */
-    public function test_tc_07_14_mengunggah_foto_ke_draft_pengguna_lain(): void
+    /**
+     * ID: TC-07-14
+     * Fokus pengujian: Otorisasi pemilik draft saat upload.
+     * Prasyarat dan data uji: Pengguna masyarakat mengirim foto memakai ID draft milik pengguna lain.
+     * Hasil yang diharapkan: Request ditolak; foto dan metadata tidak ditambahkan ke draft pemilik.
+     * Jenis: Exception.    */
+    public function test_tc_07_14_otorisasi_pemilik_draft_saat_upload(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         Storage::fake('r2');
 
         $password = 'password-uji-tc-07-14';

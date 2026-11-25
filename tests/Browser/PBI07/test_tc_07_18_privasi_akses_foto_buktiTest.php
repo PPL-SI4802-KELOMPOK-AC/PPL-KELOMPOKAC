@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 use Mockery;
 use Tests\DuskTestCase;
 
-class test_tc_07_18_mengakses_foto_privat_milik_pengguna_lainTest extends DuskTestCase
+class test_tc_07_18_privasi_akses_foto_buktiTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-18
@@ -20,8 +20,15 @@ class test_tc_07_18_mengakses_foto_privat_milik_pengguna_lainTest extends DuskTe
      * Hasil yang diharapkan: Pemilik memperoleh URL sementara;
      * pengguna lain ditolak dan tidak memperoleh URL foto.
      */
-    public function test_tc_07_18_mengakses_foto_privat_milik_pengguna_lain(): void
+    /**
+     * ID: TC-07-18
+     * Fokus pengujian: Privasi akses foto bukti.
+     * Prasyarat dan data uji: Pengguna A memiliki foto; pengguna B mencoba mengakses ID foto yang sama.
+     * Hasil yang diharapkan: A mendapat URL sementara; B mendapat 404 dan tidak menerima URL foto.
+     * Jenis: Exception.    */
+    public function test_tc_07_18_privasi_akses_foto_bukti(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $pemilik = new User;
         $pemilik->name = 'Pemilik Foto Uji PBI07 TC18';
         $pemilik->email = 'dusk-pbi07-'.Str::uuid().'@example.test';

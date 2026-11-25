@@ -18,6 +18,7 @@ class test_tc_08_14_membuka_tanda_terima_milik_orang_lain_atau_draftTest extends
      */
     public function test_tc_08_14_membuka_tanda_terima_milik_orang_lain_atau_draft(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $pemilik = new User;
         $pemilik->name = 'Pemilik Pengajuan Uji PBI08 TC14';
         $pemilik->email = 'dusk-pbi08-'.Str::uuid().'@example.test';

@@ -21,6 +21,7 @@ class test_tc_08_08_mengirim_ulang_request_pengajuan_yang_sudah_berhasilTest ext
      */
     public function test_tc_08_08_mengirim_ulang_request_pengajuan_yang_sudah_berhasil(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $email = 'dusk-pbi08-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-08-08';
 

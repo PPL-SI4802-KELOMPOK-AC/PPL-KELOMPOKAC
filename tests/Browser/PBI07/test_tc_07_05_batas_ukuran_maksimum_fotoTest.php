@@ -10,10 +10,17 @@ use Illuminate\Support\Str;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-class test_tc_07_05_mengunggah_foto_tepat_5mbTest extends DuskTestCase
+class test_tc_07_05_batas_ukuran_maksimum_fotoTest extends DuskTestCase
 {
-    public function test_tc_07_05_mengunggah_foto_tepat_5mb(): void
+    /**
+     * ID: TC-07-05
+     * Fokus pengujian: Batas ukuran maksimum foto.
+     * Prasyarat dan data uji: Draft belum mencapai batas lima foto; satu foto PNG valid berukuran tepat 5.000.000 byte.
+     * Hasil yang diharapkan: Foto diterima dan berhasil tersimpan.
+     * Jenis: Normal.    */
+    public function test_tc_07_05_batas_ukuran_maksimum_foto(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-07-05';
         $address = 'Desa Uji PBI07 TC05, Kecamatan Uji, Kabupaten Uji';
@@ -58,12 +65,17 @@ class test_tc_07_05_mengunggah_foto_tepat_5mbTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($email, $password, $photoPath, $photoName) {
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
                     ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->assertSee('Tunjukkan kondisi di lapangan')
                     ->attach('#photos', $photoPath)
+                    ->pause(900)
                     ->waitFor('[data-evidence-preview] img[alt="Preview '.$photoName.'"]')
                     ->assertVisible('[data-evidence-preview] img')
                     ->assertSeeIn('[data-evidence-preview]', $photoName)

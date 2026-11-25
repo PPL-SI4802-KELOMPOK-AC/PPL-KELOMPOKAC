@@ -21,6 +21,7 @@ class test_tc_08_05_membuka_ringkasan_tanpa_koordinatTest extends DuskTestCase
      */
     public function test_tc_08_05_membuka_ringkasan_tanpa_koordinat(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $email = 'dusk-pbi08-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-08-05';
 

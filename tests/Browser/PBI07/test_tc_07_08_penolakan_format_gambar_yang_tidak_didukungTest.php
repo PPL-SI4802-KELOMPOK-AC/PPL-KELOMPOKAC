@@ -9,26 +9,26 @@ use Illuminate\Support\Str;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-class test_tc_07_09_memilih_lebih_dari_lima_fotoTest extends DuskTestCase
+class test_tc_07_08_penolakan_format_gambar_yang_tidak_didukungTest extends DuskTestCase
 {
-    public function test_tc_07_09_memilih_lebih_dari_lima_foto(): void
+    /**
+     * ID: TC-07-08
+     * Fokus pengujian: Penolakan format gambar yang tidak didukung.
+     * Prasyarat dan data uji: Berkas gambar GIF dipilih.
+     * Hasil yang diharapkan: Format ditolak dan foto tidak dapat diunggah.
+     * Jenis: Exception.    */
+    public function test_tc_07_08_penolakan_format_gambar_yang_tidak_didukung(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
-        $password = 'password-uji-tc-07-09';
-        $address = 'Desa Uji PBI07 TC09, Kecamatan Uji, Kabupaten Uji';
-
-        $photoNames = array_map(
-            fn ($number) => "tc-07-09-photo-{$number}.png",
-            range(1, 6)
-        );
-
-        $photoPaths = array_map(
-            fn ($name) => __DIR__.DIRECTORY_SEPARATOR.$name,
-            $photoNames
-        );
+        $password = 'password-uji-tc-07-08';
+        $address = 'Desa Uji PBI07 TC08, Kecamatan Uji, Kabupaten Uji';
+        $photoName = 'tc-07-08-format-tidak-didukung.gif';
+        $photoPath = __DIR__.DIRECTORY_SEPARATOR.$photoName;
+        $errorMessage = $photoName.': pilih JPG, PNG, atau WebP berukuran maksimal 5 MB.';
 
         $user = new User;
-        $user->name = 'Pengguna Uji PBI07 TC09';
+        $user->name = 'Pengguna Uji PBI07 TC08';
         $user->email = $email;
         $user->password = Hash::make($password);
         $user->role = 'masyarakat';
@@ -38,7 +38,7 @@ class test_tc_07_09_memilih_lebih_dari_lima_fotoTest extends DuskTestCase
         $draft = new PengajuanPlts;
         $draft->user_id = $user->id;
         $draft->nomor_tiket = 'DUSK-'.Str::upper(Str::random(16));
-        $draft->ringkasan_pengajuan = 'Draft lokasi untuk pengujian TC-07-09';
+        $draft->ringkasan_pengajuan = 'Draft lokasi untuk pengujian TC-07-08';
         $draft->status_terkini = 'draft';
         $draft->status_diperbarui_pada = now();
         $draft->save();
@@ -49,26 +49,29 @@ class test_tc_07_09_memilih_lebih_dari_lima_fotoTest extends DuskTestCase
             'longitude' => 107.609810,
         ]);
 
-        $png = base64_decode(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6l1sAAAAASUVORK5CYII=',
+        $gif = base64_decode(
+            'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
             true
         );
 
         try {
-            foreach ($photoPaths as $photoPath) {
-                file_put_contents($photoPath, $png);
-            }
+            file_put_contents($photoPath, $gif);
 
-            $this->browse(function (Browser $browser) use ($email, $password, $photoPaths) {
-                $errorMessage = 'Pilih maksimal 5 foto lagi untuk draft ini.';
+            $this->assertNotFalse(getimagesize($photoPath));
 
+            $this->browse(function (Browser $browser) use ($email, $password, $photoPath, $errorMessage) {
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
                     ->assertPathIs('/pengajuan/lokasi/bukti')
-                    ->attach('#photos', implode("\n", $photoPaths))
+                    ->attach('#photos', $photoPath)
+                    ->pause(900)
                     ->waitForText($errorMessage)
                     ->assertSeeIn('[data-evidence-status]', $errorMessage)
                     ->assertDisabled('[data-evidence-submit]');
@@ -80,10 +83,8 @@ class test_tc_07_09_memilih_lebih_dari_lima_fotoTest extends DuskTestCase
             $draft->delete();
             $user->delete();
 
-            foreach ($photoPaths as $photoPath) {
-                if (file_exists($photoPath)) {
-                    unlink($photoPath);
-                }
+            if (file_exists($photoPath)) {
+                unlink($photoPath);
             }
         }
     }

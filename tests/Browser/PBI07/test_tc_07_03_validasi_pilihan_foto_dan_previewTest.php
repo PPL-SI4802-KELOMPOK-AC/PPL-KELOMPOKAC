@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-class test_tc_07_03_memilih_foto_valid_dan_melihat_previewTest extends DuskTestCase
+class test_tc_07_03_validasi_pilihan_foto_dan_previewTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-03
@@ -19,8 +19,15 @@ class test_tc_07_03_memilih_foto_valid_dan_melihat_previewTest extends DuskTestC
      * Langkah: Pilih satu foto PNG valid berukuran di bawah 5 MB.
      * Hasil yang diharapkan: Preview foto tampil dan tombol Unggah foto aktif.
      */
-    public function test_tc_07_03_memilih_foto_valid_dan_melihat_preview(): void
+    /**
+     * ID: TC-07-03
+     * Fokus pengujian: Validasi pilihan foto dan preview.
+     * Prasyarat dan data uji: Draft belum mencapai batas lima foto; satu file PNG valid berukuran maksimal 5 MB.
+     * Hasil yang diharapkan: Preview foto tampil dan tombol unggah aktif.
+     * Jenis: Normal.    */
+    public function test_tc_07_03_validasi_pilihan_foto_dan_preview(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-07-03';
         $address = 'Desa Uji PBI07 TC03, Kecamatan Uji, Kabupaten Uji';
@@ -60,13 +67,18 @@ class test_tc_07_03_memilih_foto_valid_dan_melihat_previewTest extends DuskTestC
             $this->browse(function (Browser $browser) use ($email, $password, $photoPath, $photoName) {
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
                     ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->assertSee('Tunjukkan kondisi di lapangan')
                     ->waitFor('#photos')
                     ->attach('#photos', $photoPath)
+                    ->pause(900)
                     ->waitFor('[data-evidence-preview] img')
                     ->assertVisible('[data-evidence-preview] img')
                     ->assertSeeIn('[data-evidence-preview]', $photoName)

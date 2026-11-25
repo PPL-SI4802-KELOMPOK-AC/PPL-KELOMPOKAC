@@ -21,6 +21,7 @@ class test_tc_08_11_mengirim_draft_milik_pengguna_lainTest extends DuskTestCase
      */
     public function test_tc_08_11_mengirim_draft_milik_pengguna_lain(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $address = app(LocationCatalog::class)->address([
             'kabupaten' => '3205',
             'kecamatan' => 'Cikelet',

@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-class test_tc_07_11_menampilkan_kembali_foto_yang_sudah_tersimpanTest extends DuskTestCase
+class test_tc_07_11_tampilan_metadata_foto_tersimpanTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-11
@@ -18,8 +18,15 @@ class test_tc_07_11_menampilkan_kembali_foto_yang_sudah_tersimpanTest extends Du
      * Kondisi awal: Draft pengguna memiliki foto yang sudah tersimpan.
      * Hasil yang diharapkan: Foto tampil kembali beserta nama, tipe, dan ukuran.
      */
-    public function test_tc_07_11_menampilkan_kembali_foto_yang_sudah_tersimpan(): void
+    /**
+     * ID: TC-07-11
+     * Fokus pengujian: Tampilan metadata foto tersimpan.
+     * Prasyarat dan data uji: Draft memiliki satu foto tersimpan; pemilik membuka kembali halaman bukti.
+     * Hasil yang diharapkan: Nama, tipe, ukuran, dan entri foto tampil pada draft yang sama.
+     * Jenis: Normal.    */
+    public function test_tc_07_11_tampilan_metadata_foto_tersimpan(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-07-11';
         $address = 'Desa Uji PBI07 TC11, Kecamatan Uji, Kabupaten Uji';
@@ -61,9 +68,13 @@ class test_tc_07_11_menampilkan_kembali_foto_yang_sudah_tersimpanTest extends Du
             $this->browse(function (Browser $browser) use ($email, $password, $photoName) {
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
                     ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->assertSeeIn('[data-evidence-count]', '1')
                     ->assertSeeIn('[data-evidence-count-label]', 'Foto tersimpan')

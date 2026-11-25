@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\DuskTestCase;
 
-class test_tc_07_13_mengunggah_sebagai_role_selain_masyarakatTest extends DuskTestCase
+class test_tc_07_13_pembatasan_upload_berdasarkan_roleTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-13
@@ -19,8 +19,15 @@ class test_tc_07_13_mengunggah_sebagai_role_selain_masyarakatTest extends DuskTe
      * Input: Role admin dan pemerintah mengirim request upload.
      * Hasil yang diharapkan: Akses ditolak; foto dan metadata tidak tersimpan.
      */
-    public function test_tc_07_13_mengunggah_sebagai_role_selain_masyarakat(): void
+    /**
+     * ID: TC-07-13
+     * Fokus pengujian: Pembatasan upload berdasarkan role.
+     * Prasyarat dan data uji: Akun ber-role `admin` dan `pemerintah` mengirim request upload.
+     * Hasil yang diharapkan: Kedua request mendapat status 403; foto dan metadata tidak tersimpan.
+     * Jenis: Exception.    */
+    public function test_tc_07_13_pembatasan_upload_berdasarkan_role(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         Storage::fake('r2');
 
         $roles = ['admin', 'pemerintah'];
