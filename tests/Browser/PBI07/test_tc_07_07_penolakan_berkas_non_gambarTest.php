@@ -9,10 +9,17 @@ use Illuminate\Support\Str;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-class test_tc_07_07_mengunggah_file_bukan_gambarTest extends DuskTestCase
+class test_tc_07_07_penolakan_berkas_non_gambarTest extends DuskTestCase
 {
-    public function test_tc_07_07_mengunggah_file_bukan_gambar(): void
+    /**
+     * ID: TC-07-07
+     * Fokus pengujian: Penolakan berkas non-gambar.
+     * Prasyarat dan data uji: Berkas `.txt` dikirim sebagai foto.
+     * Hasil yang diharapkan: Validasi server menolak berkas dan metadata foto tidak tersimpan.
+     * Jenis: Exception.    */
+    public function test_tc_07_07_penolakan_berkas_non_gambar(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-07-07';
         $address = 'Desa Uji PBI07 TC07, Kecamatan Uji, Kabupaten Uji';
@@ -48,11 +55,16 @@ class test_tc_07_07_mengunggah_file_bukan_gambarTest extends DuskTestCase
             $this->browse(function (Browser $browser) use ($email, $password, $filePath, $errorMessage) {
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
                     ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->attach('#photos', $filePath);
+                    $browser->pause(900);
 
                 // Kirim form untuk memastikan validasi server menolak file .txt.
                 $browser->script("

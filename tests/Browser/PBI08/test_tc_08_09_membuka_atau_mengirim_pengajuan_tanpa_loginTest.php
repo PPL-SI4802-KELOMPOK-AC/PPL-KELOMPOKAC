@@ -21,6 +21,7 @@ class test_tc_08_09_membuka_atau_mengirim_pengajuan_tanpa_loginTest extends Dusk
      */
     public function test_tc_08_09_membuka_atau_mengirim_pengajuan_tanpa_login(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $address = app(LocationCatalog::class)->address([
             'kabupaten' => '3205',
             'kecamatan' => 'Cikelet',

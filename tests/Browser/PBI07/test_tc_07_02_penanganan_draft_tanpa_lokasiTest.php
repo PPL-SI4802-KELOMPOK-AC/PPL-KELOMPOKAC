@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-class test_tc_07_02_membuka_halaman_bukti_tanpa_lokasi_tersimpanTest extends DuskTestCase
+class test_tc_07_02_penanganan_draft_tanpa_lokasiTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-02
@@ -19,8 +19,15 @@ class test_tc_07_02_membuka_halaman_bukti_tanpa_lokasi_tersimpanTest extends Dus
      * Langkah: Pengguna membuka halaman bukti foto.
      * Hasil yang diharapkan: Pengguna diarahkan ke halaman lokasi dan diminta menyimpan data lokasi terlebih dahulu.
      */
-    public function test_tc_07_02_membuka_halaman_bukti_tanpa_lokasi_tersimpan(): void
+    /**
+     * ID: TC-07-02
+     * Fokus pengujian: Penanganan draft tanpa lokasi.
+     * Prasyarat dan data uji: Pengguna masyarakat login; draft tidak memiliki lokasi tersimpan.
+     * Hasil yang diharapkan: Pengguna diarahkan ke halaman lokasi dan mendapat pesan agar menyimpan data lokasi.
+     * Jenis: Exception.    */
+    public function test_tc_07_02_penanganan_draft_tanpa_lokasi(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-07-02';
 
@@ -44,9 +51,13 @@ class test_tc_07_02_membuka_halaman_bukti_tanpa_lokasi_tersimpanTest extends Dus
             $this->browse(function (Browser $browser) use ($email, $password) {
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
                     ->assertPathIs('/pengajuan/lokasi')
                     ->assertSee('Simpan data lokasi terlebih dahulu sebelum mengunggah bukti foto.');
             });

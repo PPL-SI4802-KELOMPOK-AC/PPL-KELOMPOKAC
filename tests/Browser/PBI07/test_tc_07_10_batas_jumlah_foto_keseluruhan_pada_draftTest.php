@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-class test_tc_07_10_melebihi_batas_lima_foto_pada_satu_draftTest extends DuskTestCase
+class test_tc_07_10_batas_jumlah_foto_keseluruhan_pada_draftTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-10
@@ -20,8 +20,15 @@ class test_tc_07_10_melebihi_batas_lima_foto_pada_satu_draftTest extends DuskTes
      * Hasil yang diharapkan: Upload ditolak karena jumlah keseluruhan
      * akan melebihi lima foto.
      */
-    public function test_tc_07_10_melebihi_batas_lima_foto_pada_satu_draft(): void
+    /**
+     * ID: TC-07-10
+     * Fokus pengujian: Batas jumlah foto keseluruhan pada draft.
+     * Prasyarat dan data uji: Draft memiliki empat foto; dua foto valid baru dipilih.
+     * Hasil yang diharapkan: Pilihan ditolak karena total menjadi enam; metadata tetap empat foto.
+     * Jenis: Exception.    */
+    public function test_tc_07_10_batas_jumlah_foto_keseluruhan_pada_draft(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $email = 'dusk-pbi07-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-07-10';
         $address = 'Desa Uji PBI07 TC10, Kecamatan Uji, Kabupaten Uji';
@@ -80,13 +87,18 @@ class test_tc_07_10_melebihi_batas_lima_foto_pada_satu_draftTest extends DuskTes
 
                 $browser->visit('http://127.0.0.1:8000/login')
                     ->type('email', $email)
+                        ->pause(500)
                     ->type('password', $password)
+                        ->pause(500)
                     ->press('Masuk')
+                    ->pause(700)
                     ->visit('http://127.0.0.1:8000/pengajuan/lokasi/bukti')
+                    ->pause(900)
                     ->assertPathIs('/pengajuan/lokasi/bukti')
                     ->assertSeeIn('[data-evidence-status]', '4 foto tersimpan. 1 slot tersisa.')
                     ->assertSeeIn('[data-evidence-count]', '4')
                     ->attach('#photos', implode("\n", $photoPaths))
+                    ->pause(900)
                     ->waitForText($errorMessage)
                     ->assertSeeIn('[data-evidence-status]', $errorMessage)
                     ->assertDisabled('[data-evidence-submit]');

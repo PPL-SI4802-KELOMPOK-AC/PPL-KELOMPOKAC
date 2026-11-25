@@ -13,7 +13,7 @@ use Mockery;
 use RuntimeException;
 use Tests\DuskTestCase;
 
-class test_tc_07_16_gagal_menyimpan_foto_ke_cloudflare_r2Test extends DuskTestCase
+class test_tc_07_16_penanganan_kegagalan_penyimpanan_r2Test extends DuskTestCase
 {
     /**
      * ID TC: TC-07-16
@@ -21,8 +21,15 @@ class test_tc_07_16_gagal_menyimpan_foto_ke_cloudflare_r2Test extends DuskTestCa
      * Jenis: Exception.
      * Hasil yang diharapkan: Pesan gagal tampil dan metadata tidak tercatat.
      */
-    public function test_tc_07_16_gagal_menyimpan_foto_ke_cloudflare_r2(): void
+    /**
+     * ID: TC-07-16
+     * Fokus pengujian: Penanganan kegagalan penyimpanan R2.
+     * Prasyarat dan data uji: Foto valid dikirim; operasi simpan R2 disimulasikan gagal.
+     * Hasil yang diharapkan: Pesan kegagalan tampil dan metadata tidak tercatat.
+     * Jenis: Exception.    */
+    public function test_tc_07_16_penanganan_kegagalan_penyimpanan_r2(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         $photoPath = __DIR__.DIRECTORY_SEPARATOR.'tc-07-16-foto-valid.png';
 
         $user = new User;

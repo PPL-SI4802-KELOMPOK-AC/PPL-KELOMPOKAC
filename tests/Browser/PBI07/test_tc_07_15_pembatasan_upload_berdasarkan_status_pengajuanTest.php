@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\DuskTestCase;
 
-class test_tc_07_15_mengunggah_foto_ke_pengajuan_bukan_draftTest extends DuskTestCase
+class test_tc_07_15_pembatasan_upload_berdasarkan_status_pengajuanTest extends DuskTestCase
 {
     /**
      * ID TC: TC-07-15
@@ -19,8 +19,15 @@ class test_tc_07_15_mengunggah_foto_ke_pengajuan_bukan_draftTest extends DuskTes
      * Input: Pemilik mencoba upload ke pengajuan berstatus diajukan.
      * Hasil yang diharapkan: Upload ditolak; foto dan metadata tidak ditambahkan.
      */
-    public function test_tc_07_15_mengunggah_foto_ke_pengajuan_bukan_draft(): void
+    /**
+     * ID: TC-07-15
+     * Fokus pengujian: Pembatasan upload berdasarkan status pengajuan.
+     * Prasyarat dan data uji: Pemilik mengirim foto ke pengajuan berstatus `diajukan`.
+     * Hasil yang diharapkan: Request ditolak; status, nomor pengajuan, dan metadata tidak berubah.
+     * Jenis: Exception.    */
+    public function test_tc_07_15_pembatasan_upload_berdasarkan_status_pengajuan(): void
     {
+        sleep(3); // Jeda demo agar durasi test mudah diamati.
         Storage::fake('r2');
 
         $photoPath = __DIR__.DIRECTORY_SEPARATOR.'tc-07-15-foto-valid.png';
