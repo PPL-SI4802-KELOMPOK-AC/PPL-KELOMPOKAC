@@ -192,9 +192,31 @@
 .history-page .history-filter-field small { color: #71879b; font-size: 10px; line-height: 1.4; }
 .history-page .history-filter-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .history-page .history-filter-actions .button { min-height: 40px; white-space: nowrap; }
-.history-page .table-scroll { max-height: none; margin-inline: 20px; width: calc(100% - 40px); border: 1px solid var(--border); border-radius: 10px; }
-.history-page .region-table { width: 100%; min-width: 810px; table-layout: fixed; font-size: 13px; }
-.history-page .region-table th { padding: 13px 12px; font-size: 11px; }
+.history-page .table-scroll {
+    width: calc(100% - 40px);
+    max-height: 430px;
+    margin-inline: 20px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow-x: auto;
+    overflow-y: auto;
+    scroll-padding-top: 46px;
+}
+.history-page .region-table {
+    width: 100%;
+    min-width: 810px;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    font-size: 13px;
+}
+.history-page .region-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 13px 12px;
+    font-size: 11px;
+}
 .history-page .region-table td { padding: 14px 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .history-page .region-table th:first-child, .history-page .region-table td:first-child { width: 17%; padding-left: 16px; }
 .history-page .region-table th:nth-child(2), .history-page .region-table td:nth-child(2) { width: 14%; }
@@ -235,7 +257,7 @@
     .history-page .history-filters { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 16px; }
     .history-page .history-filter-actions { grid-column: auto; justify-content: stretch; }
     .history-page .history-filter-actions .button { flex: 1; }
-    .history-page .table-scroll { margin-inline: 12px; width: calc(100% - 24px); }
+    .history-page .table-scroll { width: calc(100% - 24px); max-height: min(430px, 65dvh); margin-inline: 12px; }
     .history-page .region-table { min-width: 810px; }
     .history-page .history-pagination-row { align-items: stretch; flex-direction: column; padding: 14px 16px 17px; }
     .history-page .history-pagination { justify-content: flex-start; }

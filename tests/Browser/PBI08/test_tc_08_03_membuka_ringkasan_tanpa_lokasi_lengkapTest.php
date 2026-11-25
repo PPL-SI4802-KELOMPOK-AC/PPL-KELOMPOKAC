@@ -20,6 +20,7 @@ class test_tc_08_03_membuka_ringkasan_tanpa_lokasi_lengkapTest extends DuskTestC
      */
     public function test_tc_08_03_membuka_ringkasan_tanpa_lokasi_lengkap(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $email = 'dusk-pbi08-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-08-03';
 

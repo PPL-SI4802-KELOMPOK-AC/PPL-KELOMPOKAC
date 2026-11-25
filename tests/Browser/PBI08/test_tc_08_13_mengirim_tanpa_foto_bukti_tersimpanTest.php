@@ -21,6 +21,7 @@ class test_tc_08_13_mengirim_tanpa_foto_bukti_tersimpanTest extends DuskTestCase
      */
     public function test_tc_08_13_mengirim_tanpa_foto_bukti_tersimpan(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $address = app(LocationCatalog::class)->address([
             'kabupaten' => '3205',
             'kecamatan' => 'Cikelet',

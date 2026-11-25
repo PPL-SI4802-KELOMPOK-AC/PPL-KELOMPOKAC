@@ -47,6 +47,8 @@ Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
 Route::get('/pengajuan/riwayat', [RiwayatPengajuanController::class, 'index'])
     ->middleware(RequireMasyarakat::class)->name('pengajuan.riwayat');
+Route::get('/pengajuan/riwayat/{pengajuan}', [RiwayatPengajuanController::class, 'show'])
+    ->middleware(RequireMasyarakat::class)->whereNumber('pengajuan')->name('pengajuan.riwayat.show');
 
 Route::prefix('pengajuan/lokasi')->name('pengajuan.')->middleware(RequireMasyarakat::class)->group(function () {
     Route::get('/', [LokasiPengajuanController::class, 'edit'])->name('lokasi');
