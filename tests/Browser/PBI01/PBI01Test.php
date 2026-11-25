@@ -442,6 +442,7 @@ class PBI01Test extends DuskTestCase
             'pengajuan_id' => $pengajuan, 'diubah_oleh' => $masyarakat->id, 'status_baru' => 'diajukan',
             'jenis_tindakan' => 'pengajuan_baru', 'catatan' => 'Catatan asli masyarakat', 'created_at' => '2026-11-01 08:00:00',
         ]);
+    
 
         return compact('petugas', 'masyarakat', 'mekarjaya', 'hapus');
     }
