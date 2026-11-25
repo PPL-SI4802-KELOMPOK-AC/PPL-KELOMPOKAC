@@ -21,6 +21,7 @@ class test_tc_08_12_mengirim_dengan_lokasi_tidak_lengkap_atau_foto_melebihi_bata
      */
     public function test_tc_08_12_mengirim_dengan_lokasi_tidak_lengkap_atau_foto_melebihi_batas(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $email = 'dusk-pbi08-'.Str::uuid().'@example.test';
 
         $user = new User;

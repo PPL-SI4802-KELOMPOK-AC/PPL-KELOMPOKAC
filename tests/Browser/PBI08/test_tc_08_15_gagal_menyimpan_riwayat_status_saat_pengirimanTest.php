@@ -24,6 +24,7 @@ class test_tc_08_15_gagal_menyimpan_riwayat_status_saat_pengirimanTest extends D
      */
     public function test_tc_08_15_gagal_menyimpan_riwayat_status_saat_pengiriman(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $address = app(LocationCatalog::class)->address([
             'kabupaten' => '3205',
             'kecamatan' => 'Cikelet',

@@ -20,6 +20,7 @@ class test_tc_08_10_mengakses_fitur_dengan_role_selain_masyarakatTest extends Du
      */
     public function test_tc_08_10_mengakses_fitur_dengan_role_selain_masyarakat(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $roles = ['admin', 'pemerintah'];
         $createdRecords = [];
 

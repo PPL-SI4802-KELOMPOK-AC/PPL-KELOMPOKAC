@@ -21,6 +21,7 @@ class test_tc_08_01_membuka_ringkasan_dengan_data_lengkapTest extends DuskTestCa
      */
     public function test_tc_08_01_membuka_ringkasan_dengan_data_lengkap(): void
     {
+        sleep(3); // Jeda demo agar durasi test lebih mudah diamati.
         $email = 'dusk-pbi08-'.Str::uuid().'@example.test';
         $password = 'password-uji-tc-08-01';
         $userName = 'Pengguna Uji PBI08 TC01';
