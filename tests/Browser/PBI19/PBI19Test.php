@@ -17,6 +17,8 @@ use Symfony\Component\Process\Process;
 use Tests\DuskTestCase;
 use Throwable;
 
+// Router ini hanya aktif pada server PHP sementara yang dimulai oleh tes ini.
+// Tile sintetis membuat tes dapat diulang tanpa membebani layanan pihak ketiga.
 if (PHP_SAPI === 'cli-server') {
     $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '';
     if ($uri === '/_pbi19-data-fail') {
