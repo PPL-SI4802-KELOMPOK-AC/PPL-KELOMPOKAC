@@ -8,7 +8,7 @@ use RuntimeException;
 
 class MapData
 {
-    private function boundary(): array
+    public function boundary(): array
     {
         $path = config('map.boundary_path');
         if (! is_readable($path)) {

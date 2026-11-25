@@ -191,7 +191,7 @@ class PBI01Test extends DuskTestCase
             $this->openManager($browser);
             $this->fillForm($browser);
             $browser->click('[data-save]')->waitForText('Wilayah berhasil ditambahkan.')
-                ->waitForTextIn('[data-rows]', 'Desa Harapan Uji');
+                ->waitForTextIn('[data-rows]', 'Desa Harapan Uji')->pause($this->stepPause());
             $this->assertDatabaseHas('wilayah', ['nama_wilayah' => 'Desa Harapan Uji',
                 'jumlah_kk_terdampak' => 25, 'created_by' => $this->fixture['petugas']->id]);
             $browser->refresh()->waitForTextIn('[data-rows]', 'Desa Harapan Uji');
@@ -207,9 +207,11 @@ class PBI01Test extends DuskTestCase
             $this->openManager($browser);
             $browser->click('button[aria-label="Edit Mekarjaya"]')
                 ->waitUntil('document.querySelector("#nama_wilayah").value === "Mekarjaya" && !document.querySelector("#jumlah_kk_terdampak").disabled')
-                ->type('jumlah_kk_terdampak', '42')->click('[data-save]')
+                ->pause($this->stepPause())
+                ->typeSlowly('jumlah_kk_terdampak', '42', $this->typingPause())->pause($this->stepPause())
+                ->click('[data-save]')
                 ->waitForText('Perubahan wilayah berhasil disimpan.')
-                ->waitForTextIn($this->row('mekarjaya'), '42');
+                ->waitForTextIn($this->row('mekarjaya'), '42')->pause($this->stepPause());
             $browser->refresh()->waitForTextIn($this->row('mekarjaya'), '42');
             $this->capture($browser, 'TC-17-02-edit-kk-berhasil');
         });
@@ -226,7 +228,7 @@ class PBI01Test extends DuskTestCase
             $this->openManager($browser);
             $browser->click('button[aria-label="Hapus Desa Uji Hapus"]')->waitForDialog()
                 ->assertDialogOpened('Hapus wilayah “Desa Uji Hapus”? Tindakan ini tidak dapat dibatalkan.')
-                ->acceptDialog()->waitForText('Wilayah berhasil dihapus.')
+                ->pause($this->stepPause())->acceptDialog()->waitForText('Wilayah berhasil dihapus.')
                 ->waitUntilMissing($this->row('hapus'))->assertDontSeeIn('[data-rows]', 'Desa Uji Hapus');
             $browser->refresh()->waitForTextIn('[data-rows]', 'Mekarjaya')->assertMissing($this->row('hapus'));
             $this->capture($browser, 'TC-17-03-hapus-berhasil');
@@ -241,12 +243,13 @@ class PBI01Test extends DuskTestCase
         $this->browse(function (Browser $browser) {
             $this->openManager($browser);
             $this->fillForm($browser);
-            $browser->clear('nama_wilayah')->clear('alamat_deskriptif')->click('[data-save]')
+            $browser->clear('nama_wilayah')->pause($this->stepPause())
+                ->clear('alamat_deskriptif')->pause($this->stepPause())->click('[data-save]')
                 ->waitForTextIn('#error-nama_wilayah', 'Nama wilayah wajib diisi.')
                 ->assertSeeIn('#error-alamat_deskriptif', 'Alamat lengkap wajib diisi.')
-                ->assertAttribute('#nama_wilayah', 'aria-invalid', 'true');
+                ->assertAttribute('#nama_wilayah', 'aria-invalid', 'true')->pause($this->stepPause());
             $this->capture($browser, 'TC-17-04-validasi-wajib');
-            $browser->click('[data-cancel]')->waitForDialog()->acceptDialog();
+            $browser->click('[data-cancel]')->waitForDialog()->pause($this->stepPause())->acceptDialog();
         });
         $this->assertDatabaseCount('wilayah', 2);
     }
@@ -257,12 +260,13 @@ class PBI01Test extends DuskTestCase
         $this->browse(function (Browser $browser) {
             $this->openManager($browser);
             $this->fillForm($browser);
-            $browser->type('latitude', '91')->type('longitude', '181')->click('[data-save]')
+            $browser->typeSlowly('latitude', '91', $this->typingPause())->pause($this->stepPause())
+                ->typeSlowly('longitude', '181', $this->typingPause())->pause($this->stepPause())->click('[data-save]')
                 ->waitForTextIn('#error-latitude', 'Masukkan angka antara -90 dan 90')
                 ->assertSeeIn('#error-longitude', 'Masukkan angka antara -180 dan 180')
-                ->assertAttribute('#longitude', 'aria-invalid', 'true');
+                ->assertAttribute('#longitude', 'aria-invalid', 'true')->pause($this->stepPause());
             $this->capture($browser, 'TC-17-05-validasi-koordinat');
-            $browser->click('[data-cancel]')->waitForDialog()->acceptDialog();
+            $browser->click('[data-cancel]')->waitForDialog()->pause($this->stepPause())->acceptDialog();
         });
         $this->assertDatabaseCount('wilayah', 2);
     }
@@ -275,7 +279,7 @@ class PBI01Test extends DuskTestCase
             $this->openManager($browser);
             $browser->click('button[aria-label="Hapus Desa Uji Hapus"]')->waitForDialog()
                 ->assertDialogOpened('Hapus wilayah “Desa Uji Hapus”? Tindakan ini tidak dapat dibatalkan.')
-                ->dismissDialog()->assertSeeIn($this->row('hapus'), 'Desa Uji Hapus');
+                ->pause($this->stepPause())->dismissDialog()->assertSeeIn($this->row('hapus'), 'Desa Uji Hapus');
             $browser->refresh()->waitForTextIn($this->row('hapus'), 'Desa Uji Hapus');
             $this->capture($browser, 'TC-17-06-batal-hapus-data-utuh');
         });
@@ -300,7 +304,7 @@ class PBI01Test extends DuskTestCase
     {
         $browser->resize(1920, 1400)->loginAs($this->fixture['petugas'])->visit('/pemerintah/wilayah')
             ->waitForTextIn('[data-list-status]', '2 wilayah ditemukan')
-            ->assertSee('Kelola data wilayah')->assertSee('Petugas ESDM Uji');
+            ->assertSee('Kelola data wilayah')->assertSee('Petugas ESDM Uji')->pause($this->stepPause());
     }
 
     private function fillForm(Browser $browser): void
@@ -309,9 +313,23 @@ class PBI01Test extends DuskTestCase
             if ($name === 'kondisi_listrik') {
                 $browser->select($name, $value);
             } else {
-                $browser->type($name, (string) $value);
+                $browser->typeSlowly($name, (string) $value, $this->typingPause());
             }
+            $browser->pause($this->stepPause());
         }
+    }
+
+    /** Jeda demo per langkah, dalam milidetik. Isi 0 untuk menjalankan tanpa jeda. */
+    private function stepPause(): int
+    {
+        $value = getenv('DUSK_STEP_PAUSE');
+
+        return $value !== false && ctype_digit($value) ? min((int) $value, 10000) : 2000;
+    }
+
+    private function typingPause(): int
+    {
+        return min(100, intdiv($this->stepPause(), 40));
     }
 
     private function row(string $fixture): string
@@ -322,7 +340,7 @@ class PBI01Test extends DuskTestCase
     private function capture(Browser $browser, string $name): void
     {
         $browser->script('window.scrollTo(0, 0);');
-        $browser->pause((int) (getenv('PBI01_DEMO_PAUSE') ?: 750))
+        $browser->pause(max($this->stepPause(), (int) (getenv('PBI01_DEMO_PAUSE') ?: 750)))
             ->screenshot('PBI01/'.$name);
         // Rekam halaman utuh, termasuk bagian formulir di bawah viewport desktop.
         $devTools = new ChromeDevToolsDriver($browser->driver);
