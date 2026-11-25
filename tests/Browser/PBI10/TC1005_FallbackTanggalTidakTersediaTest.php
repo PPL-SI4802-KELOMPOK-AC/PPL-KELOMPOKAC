@@ -25,6 +25,7 @@ class TC1005_FallbackTanggalTidakTersediaTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($account, $dated, $missingDate) {
             $this->signIn($browser, $account)
                 ->visit($this->appUrl('/pengajuan/riwayat'))
+                ->pause($this->demoPauseDuration())
                 ->assertSeeIn('tbody tr:first-child', $dated->nomor_tiket)
                 ->assertSeeIn('tbody tr:nth-child(2)', $missingDate->nomor_tiket)
                 ->assertSeeIn('tbody tr:nth-child(2)', 'Tanggal tidak tersedia');

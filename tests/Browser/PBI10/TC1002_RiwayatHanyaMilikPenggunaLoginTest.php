@@ -19,6 +19,7 @@ class TC1002_RiwayatHanyaMilikPenggunaLoginTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($account, $owned, $notOwned) {
             $this->signIn($browser, $account)
                 ->visit($this->appUrl('/pengajuan/riwayat'))
+                ->pause($this->demoPauseDuration())
                 ->assertSeeIn('tbody', $owned->nomor_tiket)
                 ->assertDontSeeIn('tbody', $notOwned->nomor_tiket)
                 ->assertSeeIn('.history-results', 'Menampilkan 1–1 dari 1 pengajuan');

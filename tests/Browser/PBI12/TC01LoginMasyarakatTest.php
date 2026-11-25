@@ -10,15 +10,19 @@ class TC01LoginMasyarakatTest extends PBI12TestCase
     public function test_tc_pbi12_01_login_masyarakat(): void
     {
         $this->browse(function (Browser $browser) {
-            $this->clearBrowserSession($browser);
+            try {
+                $this->clearBrowserSession($browser);
 
-            $this->login(
-                $browser,
-                'masyarakat.uji@example.test',
-                self::PASSWORD_MASYARAKAT
-            );
+                $this->login(
+                    $browser,
+                    'masyarakat.uji@example.test',
+                    self::PASSWORD_MASYARAKAT
+                );
 
-            $browser->assertPathIs('/peta-wilayah');
+                $browser->assertPathIs('/peta-wilayah');
+            } finally {
+                $browser->pause(3000);
+            }
         });
     }
 }

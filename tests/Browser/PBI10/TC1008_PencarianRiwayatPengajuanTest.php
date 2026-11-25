@@ -9,7 +9,7 @@ class TC1008_PencarianRiwayatPengajuanTest extends DuskTestCase
 {
     use PBI10DuskSupport;
 
-    public function test_pencarian_nomor_dan_alamat_tetap_membatasi_pengguna(): void
+    public function test_pencarian_nama_desa_tetap_membatasi_pengguna(): void
     {
         $account = $this->makeUser();
         $other = $this->makeUser('Pemilik Lain PBI10');
@@ -26,15 +26,18 @@ class TC1008_PencarianRiwayatPengajuanTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($account, $owned, $otherOwned, $otherUserSubmission) {
             $this->signIn($browser, $account)
                 ->visit($this->appUrl('/pengajuan/riwayat'))
+                ->pause($this->demoPauseDuration())
                 ->type('#history-search', $owned->nomor_tiket)
                 ->press('Terapkan')
+                ->pause($this->demoPauseDuration())
                 ->assertQueryStringHas('q', $owned->nomor_tiket)
-                ->assertSeeIn('tbody', $owned->nomor_tiket)
+                ->assertDontSeeIn('tbody', $owned->nomor_tiket)
                 ->assertDontSeeIn('tbody', $otherOwned->nomor_tiket)
                 ->assertDontSeeIn('tbody', $otherUserSubmission->nomor_tiket)
-                ->type('#history-search', 'Awasagara')
+                ->type('#history-search', 'aSaGa')
                 ->press('Terapkan')
-                ->assertQueryStringHas('q', 'Awasagara')
+                ->pause($this->demoPauseDuration())
+                ->assertQueryStringHas('q', 'aSaGa')
                 ->assertSeeIn('tbody', $otherOwned->nomor_tiket)
                 ->assertDontSeeIn('tbody', $otherUserSubmission->nomor_tiket)
                 ->assertSeeIn('.history-results', 'Menampilkan 1–1 dari 1 pengajuan');

@@ -244,7 +244,22 @@ trait PBI09DuskSupport
     protected function signIn(Browser $browser, string $email, string $password): Browser
     {
         return $browser->visit(self::$baseUrl.'/login')
-            ->type('email', $email)->type('password', $password)->press('Masuk');
+            ->type('email', $email)->type('password', $password)->press('Masuk')
+            ->pause($this->demoPauseDuration());
+    }
+
+    protected function demoPauseDuration(): int
+    {
+        $duration = getenv('PBI09_DEMO_PAUSE');
+
+        return $duration === false ? 3000 : max(0, (int) $duration);
+    }
+
+    protected function pauseForDemo(Browser $browser): Browser
+    {
+        $duration = $this->demoPauseDuration();
+
+        return $duration > 0 ? $browser->pause($duration) : $browser;
     }
 
     protected function appUrl(string $path): string

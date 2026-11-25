@@ -86,7 +86,13 @@ class PengajuanController extends Controller
         $pengajuan = PengajuanPlts::whereKey($pengajuan)->where('user_id', $request->user()->id)
             ->where('status_terkini', '!=', 'draft')->firstOrFail();
 
-        return response()->view('pengajuan.terkirim', compact('pengajuan'))
+        $riwayatStatus = DB::table('riwayat_status_pengajuan')
+            ->where('pengajuan_id', $pengajuan->id)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get(['status_baru', 'catatan', 'created_at']);
+
+        return response()->view('pengajuan.terkirim', compact('pengajuan', 'riwayatStatus'))
             ->header('Cache-Control', 'private, no-store');
     }
 }
