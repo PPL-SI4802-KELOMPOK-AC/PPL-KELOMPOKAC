@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminActivityController;
 use App\Http\Middleware\RequireAdmin;
 use App\Http\Controllers\BuktiPengajuanController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GovernmentDashboardController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\LokasiPengajuanController;
 use App\Http\Controllers\PengajuanController;
@@ -31,6 +32,11 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 Route::get('/dashboard/data', [DashboardController::class, 'data'])->middleware('throttle:dashboard-data')->name('dashboard.data');
+
+Route::prefix('pemerintah/dashboard')->name('pemerintah.dashboard')->middleware(RequirePemerintah::class)->group(function () {
+    Route::get('/', [GovernmentDashboardController::class, 'index']);
+    Route::get('/data', [GovernmentDashboardController::class, 'data'])->middleware('throttle:dashboard-data')->name('.data');
+});
 
 Route::view('/peta-wilayah', 'wilayah.map')->name('wilayah.map');
 Route::get('/peta-wilayah/data', [RegionMapController::class, 'data'])->middleware('throttle:map-data')->name('wilayah.map.data');

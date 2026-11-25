@@ -14,7 +14,7 @@
 @endphp
 <body class="@yield('body-class'){{ $usesTopNavigation ? ' top-navigation-page' : '' }}">
     <a class="skip-link" href="#konten">Lewati ke konten</a>
-    @unless(request()->routeIs('home', 'wilayah.index', 'wilayah.map', 'login', 'pengajuan.*'))
+    @unless(request()->routeIs('home', 'wilayah.index', 'wilayah.map', 'login', 'pengajuan.*', 'pemerintah.dashboard'))
         <div class="ambient" aria-hidden="true"><div class="ambient__back"></div><div class="ambient__front"></div><div class="ambient__cursor"></div></div>
     @endunless
     @unless($usesTopNavigation)
@@ -27,6 +27,7 @@
         </a>
         <p class="sidebar-label">RUANG KERJA</p>
         <nav aria-label="Navigasi utama">
+            <a href="{{ route('pemerintah.dashboard') }}" @if(request()->routeIs('pemerintah.dashboard')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
             @if(!auth()->check() || auth()->user()->role === 'masyarakat')
                 <a href="{{ route('pengajuan.lokasi') }}" @if(request()->routeIs('pengajuan.*') && !request()->routeIs('pengajuan.riwayat')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12Z"/><circle cx="12" cy="9" r="2"/></svg>Pengajuan PLTS</a>
             @endif
@@ -43,7 +44,7 @@
         @else
         <header class="site-header">
             <button class="button drawer-toggle" type="button" data-drawer-open aria-controls="sidebar" aria-expanded="false" hidden>☰ <span>Menu</span></button>
-            <p class="breadcrumb">TerangDesa <span aria-hidden="true">/</span> <span>@yield('breadcrumb', 'Beranda')</span></p>
+            <p class="breadcrumb">{{ request()->routeIs('pemerintah.dashboard') ? 'Pemerintah' : 'TerangDesa' }} <span aria-hidden="true">/</span> <span>@yield('breadcrumb', 'Beranda')</span></p>
             <div class="workspace-identity">
                 <span class="workspace-identity__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg></span>
                 <div><strong>@auth{{ auth()->user()->name }}@else TerangDesa @endauth</strong><span>@auth{{ ucfirst(auth()->user()->role ?? 'Akun terhubung') }}@else Pemetaan wilayah @endauth</span></div>

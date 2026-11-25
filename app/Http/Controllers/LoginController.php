@@ -32,7 +32,7 @@ class LoginController extends Controller
 
         $role = $request->user()->role;
         $destination = match ($role) {
-            'pemerintah' => 'wilayah.index',
+            'pemerintah' => 'pemerintah.dashboard',
             'masyarakat' => 'wilayah.map',
             'admin' => 'admin.dashboard',
             default => 'home',
@@ -42,7 +42,7 @@ class LoginController extends Controller
         $local = is_string($intended) && ($intended === url('/') || str_starts_with($intended, url('/').'/'));
         $allowed = in_array($path, ['/', '/peta-wilayah'], true)
             || ($role === 'masyarakat' && ($path === '/pengajuan/riwayat' || $path === '/pengajuan/lokasi' || str_starts_with($path ?? '', '/pengajuan/lokasi/')))
-            || ($role === 'pemerintah' && ($path === '/pemerintah/wilayah' || str_starts_with($path ?? '', '/pemerintah/wilayah/')))
+            || ($role === 'pemerintah' && ($path === '/pemerintah/wilayah' || str_starts_with($path ?? '', '/pemerintah/wilayah/') || $path === '/pemerintah/dashboard'))
             || ($role === 'admin' && ($path === '/admin' || str_starts_with($path ?? '', '/admin/')));
 
         return $local && $allowed ? redirect()->to($intended) : redirect()->route($destination);

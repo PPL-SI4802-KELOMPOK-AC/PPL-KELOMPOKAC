@@ -1,6 +1,18 @@
 import './bootstrap';
 import './admin-users';
 
+if (document.querySelector('[data-government-dashboard]')) {
+    import('./government-dashboard').catch(() => {
+        const root = document.querySelector('[data-government-dashboard]');
+        root.dataset.state = 'error';
+        root.setAttribute('aria-busy', 'false');
+        root.querySelector('[data-gov-status]').textContent = 'Antarmuka dashboard gagal dimuat. Muat ulang halaman untuk mencoba kembali.';
+        const retry = root.querySelector('[data-gov-retry]');
+        retry.hidden = false;
+        retry.addEventListener('click', () => location.reload());
+    });
+}
+
 const submissionForm = document.querySelector('[data-submission-form]');
 if (submissionForm) {
     const checkbox = submissionForm.elements.namedItem('pernyataan');
