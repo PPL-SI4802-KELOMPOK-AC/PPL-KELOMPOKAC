@@ -1,5 +1,6 @@
 import './bootstrap';
 import './admin-users';
+import './staff-access';
 
 if (document.querySelector('[data-government-dashboard]')) {
     import('./government-dashboard').catch(() => {

@@ -3,11 +3,11 @@
 @section('body-class', 'admin-page')
 @section('breadcrumb', 'Data wilayah')
 @section('content')
-<div data-region-manager data-base-url="{{ route('wilayah.index') }}" data-list-url="{{ route('wilayah.data') }}">
+<div data-region-manager data-can-create="{{ auth()->user()->can('staff.permission', 'wilayah.create') ? '1' : '0' }}" data-can-update="{{ auth()->user()->can('staff.permission', 'wilayah.update') ? '1' : '0' }}" data-can-delete="{{ auth()->user()->can('staff.permission', 'wilayah.delete') ? '1' : '0' }}" data-base-url="{{ route('wilayah.index') }}" data-list-url="{{ route('wilayah.data') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <section class="page-intro manage-intro">
         <div><h1>Kelola data wilayah</h1><p>Perbarui informasi lokasi dan kebutuhan listrik secara terstruktur.</p></div>
-        <button class="button button--primary" type="button" data-add><span aria-hidden="true">＋</span> Tambah wilayah</button>
+        <button class="button button--primary" type="button" data-add @cannot('staff.permission', 'wilayah.create') hidden @endcannot><span aria-hidden="true">＋</span> Tambah wilayah</button>
     </section>
     <div class="notice" role="status" aria-live="polite" data-notice hidden></div>
     <div class="manage-grid">
@@ -24,7 +24,7 @@
             </div>
             <div class="pagination"><span data-result-count>Menunggu data</span><div><button class="button" type="button" data-prev disabled aria-label="Halaman sebelumnya">‹</button><span data-page>1</span><button class="button" type="button" data-next disabled aria-label="Halaman berikutnya">›</button></div></div>
         </section>
-        <section class="panel form-panel" aria-labelledby="form-title">
+        <section class="panel form-panel" aria-labelledby="form-title" @cannot('staff.permission', 'wilayah.create') hidden @endcannot>
             <div class="panel-heading"><div><h2 id="form-title" tabindex="-1">Tambah wilayah</h2><p data-form-caption>Lengkapi informasi wilayah yang akan dicatat.</p></div><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m14 5 5 5M4 20l4-1 12-12a3 3 0 0 0-4-4L4 15Z"/></svg></span></div>
             <form class="region-form" data-region-form novalidate>
                 <p class="form-help">Tanda <span aria-hidden="true">*</span> wajib diisi. Kosongkan data yang belum diketahui.</p>

@@ -25,6 +25,7 @@ use Throwable;
  */
 class PBI01Test extends DuskTestCase
 {
+    use \Tests\Support\StaffAccessFixture;
     private array $fixture;
 
     private static ?Process $testServer = null;
@@ -354,6 +355,7 @@ class PBI01Test extends DuskTestCase
 
     private function rebuildFixture(): array
     {
+        $this->resetStaffAccessFixture();
         $connection = DB::connection();
         $path = $connection->getDatabaseName();
         $directory = realpath(storage_path('framework/testing'));
@@ -473,6 +475,7 @@ class PBI01Test extends DuskTestCase
         $user->role = $role;
         $user->save();
 
+        $this->grantStaffFixture($user);
         return $user;
     }
 }
