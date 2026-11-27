@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\StaffAccessController;
+use App\Http\Middleware\RequireStaffPermission;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminActivityController;
 use App\Http\Middleware\RequireAdmin;
@@ -26,6 +28,20 @@ Route::prefix('admin')->name('admin.')->middleware(RequireAdmin::class)->group(f
     Route::post('/pengguna', [AdminUserController::class, 'store'])->middleware('throttle:admin-users')->name('users.store');
     Route::get('/pengguna/{managedUser}/edit', [AdminUserController::class, 'edit'])->whereNumber('managedUser')->name('users.edit');
     Route::put('/pengguna/{managedUser}', [AdminUserController::class, 'update'])->middleware('throttle:admin-users')->whereNumber('managedUser')->name('users.update');
+    Route::prefix('hak-akses')->name('access.')->group(function () {
+        Route::get('/', [StaffAccessController::class, 'index'])->name('index');
+        Route::get('/tambah', [StaffAccessController::class, 'create'])->name('create');
+        Route::post('/tinjau', [StaffAccessController::class, 'preview'])->name('preview');
+        Route::post('/', [StaffAccessController::class, 'store'])->middleware('throttle:admin-users')->name('store');
+        Route::get('/petugas/{staff}', [StaffAccessController::class, 'assignment'])->whereNumber('staff')->name('assignment');
+        Route::post('/penetapan/tinjau', [StaffAccessController::class, 'previewAssignment'])->name('assignment.preview');
+        Route::post('/penetapan', [StaffAccessController::class, 'assign'])->middleware('throttle:admin-users')->name('assign');
+        Route::get('/{profile}/edit', [StaffAccessController::class, 'edit'])->whereNumber('profile')->name('edit');
+        Route::get('/{profile}/hapus', [StaffAccessController::class, 'confirmDelete'])->whereNumber('profile')->name('delete');
+        Route::get('/{profile}', [StaffAccessController::class, 'show'])->whereNumber('profile')->name('show');
+        Route::put('/{profile}', [StaffAccessController::class, 'update'])->middleware('throttle:admin-users')->whereNumber('profile')->name('update');
+        Route::delete('/{profile}', [StaffAccessController::class, 'destroy'])->middleware('throttle:admin-users')->whereNumber('profile')->name('destroy');
+    });
 });
 
 Route::get('/', function () {
@@ -34,8 +50,8 @@ Route::get('/', function () {
 Route::get('/dashboard/data', [DashboardController::class, 'data'])->middleware('throttle:dashboard-data')->name('dashboard.data');
 
 Route::prefix('pemerintah/dashboard')->name('pemerintah.dashboard')->middleware(RequirePemerintah::class)->group(function () {
-    Route::get('/', [GovernmentDashboardController::class, 'index']);
-    Route::get('/data', [GovernmentDashboardController::class, 'data'])->middleware('throttle:dashboard-data')->name('.data');
+    Route::get('/', [GovernmentDashboardController::class, 'index'])->middleware(RequireStaffPermission::class.':dashboard.view');
+    Route::get('/data', [GovernmentDashboardController::class, 'data'])->middleware([RequireStaffPermission::class.':dashboard.view', 'throttle:dashboard-data'])->name('.data');
 });
 
 Route::view('/peta-wilayah', 'wilayah.map')->name('wilayah.map');
@@ -63,10 +79,10 @@ Route::prefix('pengajuan/lokasi')->name('pengajuan.')->middleware(RequireMasyara
 });
 
 Route::prefix('pemerintah/wilayah')->name('wilayah.')->middleware(RequirePemerintah::class)->group(function () {
-    Route::get('/', [WilayahController::class, 'index'])->name('index');
-    Route::get('/data', [WilayahController::class, 'data'])->name('data');
-    Route::post('/', [WilayahController::class, 'store'])->name('store');
-    Route::get('/{wilayah}', [WilayahController::class, 'show'])->whereNumber('wilayah')->name('show');
-    Route::put('/{wilayah}', [WilayahController::class, 'update'])->whereNumber('wilayah')->name('update');
-    Route::delete('/{wilayah}', [WilayahController::class, 'destroy'])->whereNumber('wilayah')->name('destroy');
+    Route::get('/', [WilayahController::class, 'index'])->middleware(RequireStaffPermission::class.':wilayah.view')->name('index');
+    Route::get('/data', [WilayahController::class, 'data'])->middleware(RequireStaffPermission::class.':wilayah.view')->name('data');
+    Route::post('/', [WilayahController::class, 'store'])->middleware(RequireStaffPermission::class.':wilayah.create')->name('store');
+    Route::get('/{wilayah}', [WilayahController::class, 'show'])->middleware(RequireStaffPermission::class.':wilayah.view')->whereNumber('wilayah')->name('show');
+    Route::put('/{wilayah}', [WilayahController::class, 'update'])->middleware(RequireStaffPermission::class.':wilayah.update')->whereNumber('wilayah')->name('update');
+    Route::delete('/{wilayah}', [WilayahController::class, 'destroy'])->middleware(RequireStaffPermission::class.':wilayah.delete')->whereNumber('wilayah')->name('destroy');
 });

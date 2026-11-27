@@ -43,6 +43,9 @@ if (manager) initializeManager(manager);
 
 function initializeManager(root) {
     const find = selector => root.querySelector(selector);
+    const canCreate = root.dataset.canCreate === '1';
+    const canUpdate = root.dataset.canUpdate === '1';
+    const canDelete = root.dataset.canDelete === '1';
     const form = find('[data-region-form]');
     const filters = find('[data-filters]');
     const base = root.dataset.baseUrl;
@@ -90,13 +93,14 @@ function initializeManager(root) {
     }
     function fill(data = null, focus = true) {
         selected = data?.id ?? null;
+        find('.form-panel').hidden = data ? !canUpdate : !canCreate;
         fields.forEach(field => { field.value = data?.[field.name] ?? ''; });
         find('#form-title').textContent = data ? `Edit wilayah • ${data.nama_wilayah}` : 'Tambah wilayah';
         find('[data-form-caption]').textContent = data ? 'Perbarui data referensi wilayah yang dipilih.' : 'Lengkapi informasi wilayah yang akan dicatat.';
         clearErrors();
         baseline = snapshot();
         highlight();
-        if (focus) { find('#form-title').focus(); find('.form-panel').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+        if (focus && !find('.form-panel').hidden) { find('#form-title').focus(); find('.form-panel').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
     }
     function setBusy(value) {
         busy = value;
@@ -158,7 +162,10 @@ function initializeManager(root) {
             // Ikon mengikuti SVG inline yang sudah dipakai proyek.
             remove.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>';
             remove.addEventListener('click', () => deleteRegion(region, remove));
-            actions.append(edit, remove); actionCell.append(actions);
+            if (canUpdate) actions.append(edit);
+            if (canDelete) actions.append(remove);
+            if (!canUpdate && !canDelete) actions.textContent = 'Hanya baca';
+            actionCell.append(actions);
             row.append(name, count, condition, actionCell); rows.append(row);
         });
         highlight();
@@ -242,6 +249,7 @@ function initializeManager(root) {
     }
     form.addEventListener('submit', async event => {
         event.preventDefault(); if (busy || editPending) return;
+        if (selected ? !canUpdate : !canCreate) return;
         clearErrors();
         const payload = Object.fromEntries(fields.map(field => [field.name, field.value.trim() || null]));
         for (const name of ['latitude', 'longitude']) if (payload[name]) payload[name] = payload[name].replaceAll(',', '.');

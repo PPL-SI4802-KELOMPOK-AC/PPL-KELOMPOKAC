@@ -12,6 +12,11 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    public function staffAssignment(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(StaffProfileAssignment::class, 'user_id');
+    }
+
     public function pengajuans(): HasMany
     {
         return $this->hasMany(PengajuanPlts::class, 'user_id');

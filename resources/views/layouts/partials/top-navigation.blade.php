@@ -14,7 +14,8 @@
                     @if(request()->routeIs('pengajuan.riwayat')) aria-current="page"
                     @elseif(request()->routeIs('pengajuan.riwayat.*')) aria-current="location" @endif>Riwayat</a>
                 @elseif(auth()->user()?->role === 'pemerintah')
-                    <a href="{{ route('wilayah.index') }}">Data wilayah</a>
+                    @can('staff.permission', 'dashboard.view')<a href="{{ route('pemerintah.dashboard') }}">Dashboard</a>@endcan
+                    @can('staff.permission', 'wilayah.view')<a href="{{ route('wilayah.index') }}">Data wilayah</a>@endcan
                 @endif
                 @if(auth()->user()?->role === 'admin')
                     <a href="{{ route('admin.dashboard') }}">Administrasi</a>

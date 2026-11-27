@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Browser\PBI19;
+namespace Tests\Browser\PBI23;
 
 use App\Models\User;
 use Facebook\WebDriver\Chrome\ChromeDevToolsDriver;
@@ -49,6 +49,7 @@ if (PHP_SAPI === 'cli-server') {
  */
 class PBI19Test extends DuskTestCase
 {
+    use \Tests\Support\StaffAccessFixture;
     private array $fixture;
 
     private static ?Process $testServer = null;
@@ -390,6 +391,7 @@ class PBI19Test extends DuskTestCase
 
     private function rebuildFixture(): array
     {
+        $this->resetStaffAccessFixture();
         if (DB::connection()->getDriverName() !== 'sqlite' || DB::connection()->getDatabaseName() !== self::$testDatabase) {
             throw new RuntimeException('Fixture PBI-19 hanya boleh memakai SQLite sementara milik tes ini.');
         }
@@ -445,6 +447,7 @@ class PBI19Test extends DuskTestCase
             $user->is_active = true;
             $user->save();
             $users[$role] = $user;
+            $this->grantStaffFixture($user);
         }
         $region = DB::table('wilayah')->insertGetId(['nama_wilayah' => 'Mekarjaya', 'alamat_deskriptif' => 'Kabupaten Bandung, Jawa Barat', 'latitude' => '-6.9175', 'longitude' => '107.6191', 'jumlah_kk_terdampak' => 25]);
         $missing = DB::table('wilayah')->insertGetId(['nama_wilayah' => 'Desa Tanpa Lokasi', 'alamat_deskriptif' => 'Kabupaten Bandung, Jawa Barat', 'jumlah_kk_terdampak' => 10]);

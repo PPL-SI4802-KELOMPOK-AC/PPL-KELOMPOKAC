@@ -11,6 +11,7 @@ use Tests\TestCase;
 
 class GovernmentDashboardTest extends TestCase
 {
+    use \Tests\Support\StaffAccessFixture;
     protected function setUp(): void
     {
         parent::setUp();
@@ -68,6 +69,7 @@ class GovernmentDashboardTest extends TestCase
         $user->is_active = $active;
         $user->save();
 
+        $this->grantStaffFixture($user);
         return $user;
     }
 

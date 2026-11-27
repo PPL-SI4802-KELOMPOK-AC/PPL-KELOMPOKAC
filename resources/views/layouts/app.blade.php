@@ -27,11 +27,13 @@
         </a>
         <p class="sidebar-label">RUANG KERJA</p>
         <nav aria-label="Navigasi utama">
+            @can('staff.permission', 'dashboard.view')
             <a href="{{ route('pemerintah.dashboard') }}" @if(request()->routeIs('pemerintah.dashboard')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+            @endcan
             @if(!auth()->check() || auth()->user()->role === 'masyarakat')
                 <a href="{{ route('pengajuan.lokasi') }}" @if(request()->routeIs('pengajuan.*') && !request()->routeIs('pengajuan.riwayat')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 21s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12Z"/><circle cx="12" cy="9" r="2"/></svg>Pengajuan PLTS</a>
             @endif
-            <a href="{{ route('wilayah.index') }}" @if(request()->routeIs('wilayah.index')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>Data wilayah</a>
+            @can('staff.permission', 'wilayah.view')<a href="{{ route('wilayah.index') }}" @if(request()->routeIs('wilayah.index')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>Data wilayah</a>@endcan
             <a href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Beranda</a>
             <a href="{{ route('wilayah.map') }}" @if(request()->routeIs('wilayah.map')) aria-current="page" @endif><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></svg>Peta Wilayah</a>
         </nav>

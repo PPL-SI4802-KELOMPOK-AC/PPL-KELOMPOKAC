@@ -10,6 +10,7 @@ use Tests\TestCase;
 
 class PublicNavigationTest extends TestCase
 {
+    use \Tests\Support\StaffAccessFixture;
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,6 +30,7 @@ class PublicNavigationTest extends TestCase
         $user->role = $role;
         $user->save();
 
+        $this->grantStaffFixture($user);
         return $user;
     }
 

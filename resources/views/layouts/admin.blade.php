@@ -20,7 +20,7 @@
     <p class="sidebar-label">ADMINISTRASI SISTEM</p>
     <nav aria-label="Navigasi admin">
         <a href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.dashboard')) aria-current="page" @endif>@include('admin.partials.icon', ['name' => 'grid'])Ringkasan operasional</a>
-        <a href="{{ route('admin.users.index') }}" @if(request()->routeIs('admin.users.*')) aria-current="page" @endif>@include('admin.partials.icon', ['name' => 'users'])Pengguna &amp; peran</a>
+        <a href="{{ route('admin.users.index') }}" @if(request()->routeIs('admin.users.*', 'admin.access.*')) aria-current="page" @endif>@include('admin.partials.icon', ['name' => 'users'])Pengguna &amp; peran</a>
         <a href="{{ route('admin.users.index') }}#data-master">@include('admin.partials.icon', ['name' => 'database'])Data master</a>
         <a href="{{ route('admin.activities.index') }}" @if(request()->routeIs('admin.activities.*')) aria-current="page" @endif>@include('admin.partials.icon', ['name' => 'history'])Log aktivitas</a>
     </nav>

@@ -32,7 +32,8 @@ class LoginController extends Controller
 
         $role = $request->user()->role;
         $destination = match ($role) {
-            'pemerintah' => 'pemerintah.dashboard',
+            'pemerintah' => $request->user()->can('staff.permission', 'dashboard.view') ? 'pemerintah.dashboard'
+                : ($request->user()->can('staff.permission', 'wilayah.view') ? 'wilayah.index' : 'wilayah.map'),
             'masyarakat' => 'wilayah.map',
             'admin' => 'admin.dashboard',
             default => 'home',
@@ -42,7 +43,8 @@ class LoginController extends Controller
         $local = is_string($intended) && ($intended === url('/') || str_starts_with($intended, url('/').'/'));
         $allowed = in_array($path, ['/', '/peta-wilayah'], true)
             || ($role === 'masyarakat' && ($path === '/pengajuan/riwayat' || $path === '/pengajuan/lokasi' || str_starts_with($path ?? '', '/pengajuan/lokasi/')))
-            || ($role === 'pemerintah' && ($path === '/pemerintah/wilayah' || str_starts_with($path ?? '', '/pemerintah/wilayah/') || $path === '/pemerintah/dashboard'))
+            || ($role === 'pemerintah' && (($path === '/pemerintah/dashboard' && $request->user()->can('staff.permission', 'dashboard.view'))
+                || (($path === '/pemerintah/wilayah' || str_starts_with($path ?? '', '/pemerintah/wilayah/')) && $request->user()->can('staff.permission', 'wilayah.view'))))
             || ($role === 'admin' && ($path === '/admin' || str_starts_with($path ?? '', '/admin/')));
 
         return $local && $allowed ? redirect()->to($intended) : redirect()->route($destination);
