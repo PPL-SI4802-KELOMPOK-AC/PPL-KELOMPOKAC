@@ -123,13 +123,13 @@ PBI-24 tidak menambahkan endpoint hapus akun atau mengubah perlindungan Admin se
 ```powershell
 npm.cmd run build
 php artisan test
-php artisan dusk --filter=PBI24Test
+php artisan dusk tests/Browser/PBI24
 ```
 
 Untuk menjalankan hanya berkas PBI-24 tanpa penemuan berkas tes browser lain:
 
 ```powershell
-php artisan dusk tests/Browser/PBI24/PBI24Test.php --filter=PBI24Test
+php artisan dusk --filter=TC2401Test
 ```
 
 Pengujian unit/feature: **100 lulus, 772 assertions** pada pemeriksaan akhir.
@@ -178,6 +178,6 @@ Regresi GUI PBI-01 TC-17-02 (edit wilayah dan mempertahankan riwayat pengajuan):
 - `resources/views/admin/access/*.blade.php`, halaman daftar pengguna dan partial audit.
 - Layout Admin/Pemerintah, navigasi atas, dan halaman kelola wilayah.
 - `resources/css/staff-access.css`, `resources/js/staff-access.js`, registrasi aset dan `region-manage.js`.
-- `tests/Feature/StaffAccessTest.php`, fixture pada `tests/Support` dan `tests/Browser/PBI24/PBI24Test.php`.
+- `tests/Feature/StaffAccessTest.php`, fixture pada `tests/Support`, `tests/Browser/PBI24/PBI24TestCase.php` dan satu kelas per TC di folder PBI24.
 - Fixture tes PBI-01 serta tes feature navigasi/dashboard disesuaikan agar memakai
   profil nyata pada SQLite, tanpa mematikan middleware otorisasi.
