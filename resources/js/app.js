@@ -5,7 +5,7 @@ if (document.querySelector('[data-government-dashboard]')) {
     import('./government-dashboard').catch(() => {
         const root = document.querySelector('[data-government-dashboard]');
         root.dataset.state = 'error';
-        root.setAttribute('aria-busy', 'false');
+        root.querySelectorAll('[data-gov-results]').forEach(panel => panel.setAttribute('aria-busy', 'false'));
         root.querySelector('[data-gov-status]').textContent = 'Antarmuka dashboard gagal dimuat. Muat ulang halaman untuk mencoba kembali.';
         const retry = root.querySelector('[data-gov-retry]');
         retry.hidden = false;

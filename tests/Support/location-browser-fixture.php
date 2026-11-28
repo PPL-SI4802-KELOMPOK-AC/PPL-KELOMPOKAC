@@ -25,6 +25,9 @@ Schema::create('users', function (Blueprint $table) {
     $table->id(); $table->string('name'); $table->string('email')->unique();
     $table->string('password'); $table->string('role'); $table->timestamps();
 });
+Schema::create('wilayah', function (Blueprint $table) {
+    $table->id(); $table->string('kode_referensi')->nullable();
+});
 Schema::create('pengajuan_plts', function (Blueprint $table) {
     $table->id(); $table->string('nomor_tiket', 50)->unique();
     $table->foreignId('user_id')->constrained('users'); $table->unsignedBigInteger('wilayah_id')->nullable();

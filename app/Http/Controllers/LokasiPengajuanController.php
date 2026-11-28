@@ -6,6 +6,7 @@ use App\Http\Requests\SaveLokasiPengajuanRequest;
 use App\Models\PengajuanPlts;
 use App\Models\User;
 use App\Services\Pengajuan\LocationCatalog;
+use App\Services\Pengajuan\SubmissionRegion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -37,10 +38,10 @@ class LokasiPengajuanController extends Controller
         return response()->json(['villages' => $catalog->villages($input['kabupaten'])]);
     }
 
-    public function store(SaveLokasiPengajuanRequest $request, LocationCatalog $catalog)
+    public function store(SaveLokasiPengajuanRequest $request, LocationCatalog $catalog, SubmissionRegion $regions)
     {
         $input = $request->validated();
-        DB::transaction(function () use ($request, $input, $catalog) {
+        DB::transaction(function () use ($request, $input, $catalog, $regions) {
             // Satu draft lokasi aktif per akun. Kunci akun mencegah duplikasi saat
             // dua permintaan pertama diterima bersamaan atau tombol diklik ulang.
             User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
@@ -59,6 +60,7 @@ class LokasiPengajuanController extends Controller
                 $draft->status_diperbarui_pada = now();
             }
             $village = $catalog->selection($input['kabupaten'], $input['kecamatan'], $input['desa']);
+            $draft->wilayah_id = $regions->fromCode($village['code']);
             $draft->ringkasan_pengajuan = Str::limit('Lokasi '.$village['name'].', '.$catalog->districts()[$input['kabupaten']], 255, '');
             $draft->save();
             $draft->lokasi()->updateOrCreate([], [

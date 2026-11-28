@@ -39,6 +39,11 @@ class PengajuanHistoryTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('wilayah', function (Blueprint $table) {
+            $table->id();
+            $table->string('kode_referensi')->nullable();
+        });
+
         Schema::create('pengajuan_plts', function (Blueprint $table) {
             $table->id();
             $table->string('nomor_tiket', 50)->unique();
