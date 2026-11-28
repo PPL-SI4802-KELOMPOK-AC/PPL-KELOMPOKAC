@@ -9,6 +9,7 @@ use App\Http\Middleware\RequireAdmin;
 use App\Http\Controllers\BuktiPengajuanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GovernmentDashboardController;
+use App\Http\Controllers\GovernmentDashboardViewController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\LokasiPengajuanController;
 use App\Http\Controllers\PengajuanController;
@@ -49,9 +50,21 @@ Route::get('/', function () {
 })->name('home');
 Route::get('/dashboard/data', [DashboardController::class, 'data'])->middleware('throttle:dashboard-data')->name('dashboard.data');
 
-Route::prefix('pemerintah/dashboard')->name('pemerintah.dashboard')->middleware(RequirePemerintah::class)->group(function () {
-    Route::get('/', [GovernmentDashboardController::class, 'index'])->middleware(RequireStaffPermission::class.':dashboard.view');
-    Route::get('/data', [GovernmentDashboardController::class, 'data'])->middleware([RequireStaffPermission::class.':dashboard.view', 'throttle:dashboard-data'])->name('.data');
+Route::prefix('pemerintah/dashboard')->name('pemerintah.dashboard')->middleware([
+    RequirePemerintah::class, RequireStaffPermission::class.':dashboard.view',
+])->group(function () {
+    Route::get('/', [GovernmentDashboardController::class, 'index']);
+    Route::get('/data', [GovernmentDashboardController::class, 'data'])->middleware('throttle:dashboard-data')->name('.data');
+    Route::get('/administrasi', [GovernmentDashboardController::class, 'administration'])->middleware('throttle:map-data')->name('.administrasi');
+    Route::get('/wilayah', [GovernmentDashboardController::class, 'area'])->middleware('throttle:dashboard-data')->name('.wilayah');
+
+    Route::prefix('tampilan')->name('.tampilan.')->controller(GovernmentDashboardViewController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{view}', 'show')->whereNumber('view')->name('show');
+        Route::put('/{view}', 'update')->whereNumber('view')->name('update');
+        Route::delete('/{view}', 'destroy')->whereNumber('view')->name('destroy');
+    });
 });
 
 Route::view('/peta-wilayah', 'wilayah.map')->name('wilayah.map');

@@ -140,7 +140,7 @@ trait PBI09DuskSupport
 
     private function createSchema(): void
     {
-        foreach (['riwayat_status_pengajuan', 'bukti_pengajuan', 'lokasi_pengajuan', 'pengajuan_plts', 'users'] as $table) {
+        foreach (['riwayat_status_pengajuan', 'bukti_pengajuan', 'lokasi_pengajuan', 'pengajuan_plts', 'wilayah', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -153,6 +153,10 @@ trait PBI09DuskSupport
             $table->boolean('is_active')->default(true);
             $table->rememberToken();
             $table->timestamps();
+        });
+        Schema::create('wilayah', function (Blueprint $table) {
+            $table->id();
+            $table->string('kode_referensi')->nullable();
         });
         Schema::create('pengajuan_plts', function (Blueprint $table) {
             $table->id();

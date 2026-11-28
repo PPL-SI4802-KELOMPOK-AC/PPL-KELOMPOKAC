@@ -29,7 +29,7 @@ test.describe('PBI-01 dengan MySQL', () => {
         await page.getByRole('button', { name: 'Simpan data' }).click();
         await expect(page.locator('#error-nama_wilayah')).toHaveText('Nama wilayah wajib diisi.');
         await page.getByLabel('Nama wilayah', { exact: false }).fill(name);
-        await page.getByLabel('Kode referensi', { exact: true }).fill(code);
+        await page.getByLabel('Kode referensi', { exact: true }).fill(code); 
         await page.getByLabel('Tingkat wilayah').fill('desa_kelurahan');
         await page.getByLabel('Alamat lengkap').fill('Alamat khusus uji browser');
         await page.getByLabel('Lintang', { exact: true }).fill('-6,25');

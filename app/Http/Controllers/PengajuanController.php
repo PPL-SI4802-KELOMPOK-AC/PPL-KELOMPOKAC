@@ -7,6 +7,7 @@ use App\Models\PengajuanPlts;
 use App\Models\User;
 use App\Services\Pengajuan\LocationCatalog;
 use App\Services\Pengajuan\PengajuanCompleteness;
+use App\Services\Pengajuan\SubmissionRegion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -41,10 +42,10 @@ class PengajuanController extends Controller
             ->header('Cache-Control', 'private, no-store');
     }
 
-    public function submit(SubmitPengajuanRequest $request, LocationCatalog $catalog, PengajuanCompleteness $completeness)
+    public function submit(SubmitPengajuanRequest $request, LocationCatalog $catalog, PengajuanCompleteness $completeness, SubmissionRegion $regions)
     {
         $input = $request->validated();
-        $pengajuan = DB::transaction(function () use ($request, $input, $catalog, $completeness) {
+        $pengajuan = DB::transaction(function () use ($request, $input, $catalog, $completeness, $regions) {
             // Urutan kunci sama dengan penyimpanan lokasi; pengiriman ulang memakai baris yang sama.
             User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
             $draft = PengajuanPlts::whereKey($input['draft_id'])->where('user_id', $request->user()->id)
@@ -59,6 +60,8 @@ class PengajuanController extends Controller
                 throw ValidationException::withMessages($errors);
             }
 
+            $draft->wilayah_id = $draft->lokasi()->count() === 1
+                ? $regions->fromAddress($draft->lokasi->alamat_deskriptif) : null;
             $draft->nomor_tiket = 'PLTS-'.now()->format('Ymd').'-'.Str::ulid();
             $draft->status_terkini = 'diajukan';
             $draft->status_diperbarui_pada = now();

@@ -22,6 +22,11 @@ class User extends Authenticatable
         return $this->hasMany(PengajuanPlts::class, 'user_id');
     }
 
+    public function governmentDashboardViews(): HasMany
+    {
+        return $this->hasMany(GovernmentDashboardView::class);
+    }
+
     /**
      * The attributes that are mass assignable.
      *
