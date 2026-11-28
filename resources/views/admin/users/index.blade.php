@@ -28,7 +28,7 @@
                     <td role="cell" class="admin-email">{{ $user->email }}</td>
                     <td role="cell" data-label="Peran"><span class="admin-role-badge" data-role="{{ $user->role }}">{{ $roles[$user->role] ?? $user->role }}</span></td>
                     <td role="cell" data-label="Akses"><span class="admin-access {{ $user->is_active ? '' : 'is-inactive' }}"><span aria-hidden="true"></span>{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
-                    <td role="cell" class="admin-action-cell"><a class="admin-edit-link" href="{{ route('admin.users.edit', $user) }}" aria-label="Edit {{ $user->name }}">Edit<span class="admin-edit-arrow" aria-hidden="true"> ↗</span></a></td>
+                    <td role="cell" class="admin-action-cell"><a class="admin-edit-link" href="{{ route('admin.users.edit', $user) }}" aria-label="Edit {{ $user->name }}">Edit<span class="admin-edit-arrow" aria-hidden="true"> ↗</span></a>@if($user->role === 'pemerintah')<a class="admin-edit-link" href="{{ route('admin.access.assignment', $user) }}">Atur profil</a>@endif</td>
                 </tr>
             @empty
                 <tr role="row" class="admin-empty-row"><td role="cell" colspan="5" class="admin-empty"><span class="admin-empty-icon" aria-hidden="true">@include('admin.partials.icon', ['name' => 'users'])</span><strong>{{ $counts->sum() ? 'Tidak ada pengguna yang cocok.' : 'Belum ada pengguna terdaftar.' }}</strong><span>{{ $counts->sum() ? 'Coba kata pencarian, peran, atau akses lain.' : 'Tambahkan pengguna pertama untuk memulai.' }}</span>@if(!empty($filters['q']) || !empty($filters['role']) || !empty($filters['access']))<a class="button" href="{{ route('admin.users.index') }}">Hapus semua filter</a>@endif</td></tr>
@@ -42,7 +42,7 @@
         <section class="panel admin-info-panel" id="hak-akses" aria-labelledby="roles-title">
             <h2 id="roles-title">Pengaturan peran</h2>
             <dl class="admin-role-list"><div><dt>Masyarakat</dt><dd>Peta, pengajuan, riwayat pribadi</dd></div><div><dt>Pemerintah</dt><dd>Kelola data wilayah dan akses peta</dd></div><div><dt>Admin</dt><dd>Kelola akun, peran, dan akses pengguna</dd></div></dl>
-            <details class="admin-details"><summary>@include('admin.partials.icon', ['name' => 'shield'])Lihat hak akses</summary><p>Peran menentukan halaman yang dapat diakses. Admin dapat mengganti peran melalui tombol Edit pada daftar pengguna. Peran admin yang sedang digunakan tidak dapat diturunkan atau dinonaktifkan.</p></details>
+            <a class="button" href="{{ route('admin.access.index') }}">@include('admin.partials.icon', ['name' => 'shield'])Kelola hak akses</a>
         </section>
         <section class="panel admin-info-panel" id="data-master" tabindex="-1" aria-labelledby="master-title">
             <h2 id="master-title">Data master</h2>

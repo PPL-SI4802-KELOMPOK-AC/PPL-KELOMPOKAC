@@ -22,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Gate::define('staff.permission', fn (\App\Models\User $user, string $permission) => app(\App\Services\StaffAccess::class)->allows($user, $permission));
         // Nama limiter terpisah: aktivitas peta tidak boleh menghabiskan kuota login.
         RateLimiter::for('map-data', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
         RateLimiter::for('dashboard-data', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));

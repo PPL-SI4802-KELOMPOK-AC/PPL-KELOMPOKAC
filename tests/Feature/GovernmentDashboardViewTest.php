@@ -9,10 +9,13 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Support\StaffAccessFixture;
 use Tests\TestCase;
 
 class GovernmentDashboardViewTest extends TestCase
 {
+    use StaffAccessFixture;
+
     private const URL = '/pemerintah/dashboard/tampilan';
 
     private const MIGRATION = 'database/migrations/2026_11_28_000001_create_government_dashboard_views_table.php';
@@ -122,8 +125,25 @@ class GovernmentDashboardViewTest extends TestCase
         $user->role = $role;
         $user->is_active = true;
         $user->save();
+        $this->grantStaffFixture($user);
 
         return $user;
+    }
+
+    public function test_dashboard_permission_is_required_for_map_data_and_every_saved_view_action(): void
+    {
+        $user = $this->account('no-dashboard-permission');
+        DB::table('staff_profile_assignments')->where('user_id', $user->id)->delete();
+        $this->actingAs($user);
+
+        foreach (['data', 'administrasi', 'wilayah'] as $endpoint) {
+            $this->getJson('/pemerintah/dashboard/'.$endpoint)->assertForbidden();
+        }
+        $this->getJson(self::URL)->assertForbidden();
+        $this->postJson(self::URL, ['name' => 'Review'])->assertForbidden();
+        $this->getJson(self::URL.'/1')->assertForbidden();
+        $this->putJson(self::URL.'/1', ['name' => 'Review'])->assertForbidden();
+        $this->deleteJson(self::URL.'/1')->assertForbidden();
     }
 
     public function test_crud_round_trips_all_filters_and_can_clear_them(): void
@@ -220,6 +240,8 @@ class GovernmentDashboardViewTest extends TestCase
         $owner->save();
         $this->getJson(self::URL.'/'.$id)->assertUnauthorized();
         $this->assertDatabaseHas('government_dashboard_views', ['id' => $id, 'user_id' => $owner->id]);
+        // SCRUM-29 restricts deletion while the staff assignment exists.
+        DB::table('staff_profile_assignments')->where('user_id', $owner->id)->delete();
         $owner->delete();
         $this->assertDatabaseMissing('government_dashboard_views', ['id' => $id]);
     }

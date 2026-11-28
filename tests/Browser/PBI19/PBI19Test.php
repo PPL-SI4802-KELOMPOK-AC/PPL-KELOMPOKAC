@@ -15,6 +15,7 @@ use PHPUnit\Framework\Attributes\BeforeClass;
 use RuntimeException;
 use Symfony\Component\Process\Process;
 use Tests\DuskTestCase;
+use Tests\Support\StaffAccessFixture;
 use Throwable;
 
 // Router ini hanya aktif pada server PHP sementara yang dimulai oleh tes ini.
@@ -49,6 +50,8 @@ if (PHP_SAPI === 'cli-server') {
  */
 class PBI19Test extends DuskTestCase
 {
+    use StaffAccessFixture;
+
     private array $fixture;
 
     private static ?Process $testServer = null;
@@ -968,6 +971,7 @@ class PBI19Test extends DuskTestCase
             $other->role = 'pemerintah';
             $other->is_active = true;
             $other->save();
+            $this->grantStaffFixture($other);
             $browser->loginAs($other)->visit('/pemerintah/dashboard')->click('[data-saved-list] summary')
                 ->waitForTextIn('[data-saved-items]', 'Belum ada tampilan tersimpan.');
             $browser->script('fetch("/pemerintah/dashboard/tampilan/'.(int) $saved->id.'", {headers:{Accept:"application/json"}}).then(r => window.savedStatus = r.status)');
@@ -1113,6 +1117,7 @@ class PBI19Test extends DuskTestCase
         if (DB::connection()->getDriverName() !== 'sqlite' || DB::connection()->getDatabaseName() !== self::$testDatabase) {
             throw new RuntimeException('Fixture PBI-19 hanya boleh memakai SQLite sementara milik tes ini.');
         }
+        $this->resetStaffAccessFixture();
         foreach (['government_dashboard_views', 'progres_elektrifikasi', 'riwayat_status_pengajuan', 'lokasi_pengajuan', 'pengajuan_plts', 'wilayah', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
@@ -1172,6 +1177,7 @@ class PBI19Test extends DuskTestCase
             $user->role = $role;
             $user->is_active = true;
             $user->save();
+            $this->grantStaffFixture($user);
             $users[$role] = $user;
         }
         $region = DB::table('wilayah')->insertGetId(['nama_wilayah' => 'Mekarjaya', 'alamat_deskriptif' => 'Kabupaten Bandung, Jawa Barat', 'latitude' => '-6.9175', 'longitude' => '107.6191', 'jumlah_kk_terdampak' => 25]);
